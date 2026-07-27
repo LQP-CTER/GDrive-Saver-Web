@@ -41,180 +41,464 @@ st.set_page_config(
 # ─────────────────────────────────────────────────────────────────────────────
 st.markdown("""
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap');
 
-html, body, [class*="css"] { font-family: 'Inter', sans-serif; }
+/* ── Base ── */
+html, body, [class*="css"] {
+    font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+    -webkit-font-smoothing: antialiased;
+}
 
-.stApp { background: #0d0f14; }
+/* ── Background & Ambient Lighting ── */
+.stApp {
+    background-color: #0b0d12;
+    background-image: 
+        radial-gradient(circle at 50% 0%, rgba(99, 102, 241, 0.08) 0%, transparent 60%),
+        radial-gradient(circle at 10% 20%, rgba(59, 130, 246, 0.04) 0%, transparent 40%),
+        radial-gradient(circle at 90% 80%, rgba(139, 92, 246, 0.04) 0%, transparent 40%);
+    background-attachment: fixed;
+}
+
 #MainMenu, footer, header { visibility: hidden; }
-.block-container { padding-top: 2.5rem; padding-bottom: 3rem; max-width: 680px; }
+.block-container {
+    padding-top: 3rem;
+    padding-bottom: 4rem;
+    max-width: 660px;
+}
 
-/* ── Hero ── */
-.gs-hero { text-align: center; margin-bottom: 2rem; }
-.gs-wordmark { font-size: 2.1rem; font-weight: 700; letter-spacing: -0.04em; color: #ffffff; line-height: 1; }
-.gs-wordmark span { color: #6c8fff; }
-.gs-tagline { margin-top: 0.45rem; font-size: 0.88rem; color: #6b7280; }
+/* ── Hero Header ── */
+.gs-hero {
+    text-align: center;
+    margin-bottom: 2.2rem;
+    position: relative;
+}
+.gs-badge-header {
+    display: inline-block;
+    padding: 0.25rem 0.75rem;
+    border-radius: 99px;
+    background: rgba(99, 102, 241, 0.08);
+    border: 1px solid rgba(99, 102, 241, 0.2);
+    color: #818cf8;
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    margin-bottom: 0.8rem;
+}
+.gs-wordmark {
+    font-size: 2.4rem;
+    font-weight: 800;
+    letter-spacing: -0.04em;
+    color: #ffffff;
+    line-height: 1.15;
+}
+.gs-wordmark span {
+    background: linear-gradient(135deg, #818cf8 0%, #3b82f6 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+}
+.gs-tagline {
+    margin-top: 0.5rem;
+    font-size: 0.92rem;
+    color: #94a3b8;
+    font-weight: 400;
+}
 
 /* ── Tabs ── */
 .stTabs [data-baseweb="tab-list"] {
-    background: #161a24;
-    border-radius: 12px;
-    padding: 4px;
-    gap: 2px;
-    border: 1px solid #1f2535;
-    margin-bottom: 1.5rem;
+    background: rgba(18, 22, 31, 0.75);
+    backdrop-filter: blur(12px);
+    border-radius: 14px;
+    padding: 5px;
+    gap: 4px;
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    margin-bottom: 1.6rem;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
 }
 .stTabs [data-baseweb="tab"] {
     background: transparent !important;
-    border-radius: 9px !important;
-    color: #6b7280 !important;
+    border-radius: 10px !important;
+    color: #64748b !important;
     font-size: 0.88rem !important;
-    font-weight: 500 !important;
-    padding: 0.55rem 1.1rem !important;
-    border: none !important;
-    transition: all 0.2s !important;
-}
-.stTabs [data-baseweb="tab"]:hover { color: #e2e8f0 !important; }
-.stTabs [aria-selected="true"] {
-    background: #1f2d4d !important;
-    color: #6c8fff !important;
     font-weight: 600 !important;
+    padding: 0.65rem 1.25rem !important;
+    border: none !important;
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1) !important;
 }
-.stTabs [data-baseweb="tab-highlight"] { display: none !important; }
+.stTabs [data-baseweb="tab"]:hover {
+    color: #f1f5f9 !important;
+    background: rgba(255, 255, 255, 0.03) !important;
+}
+.stTabs [aria-selected="true"] {
+    background: rgba(99, 102, 241, 0.15) !important;
+    color: #818cf8 !important;
+    border: 1px solid rgba(99, 102, 241, 0.3) !important;
+    box-shadow: 0 2px 12px rgba(99, 102, 241, 0.15) !important;
+}
+.stTabs [data-baseweb="tab-highlight"],
 .stTabs [data-baseweb="tab-border"] { display: none !important; }
 
-/* ── Card ── */
+/* ── Card Containers ── */
 .gs-card {
-    background: #161a24;
-    border: 1px solid #1f2535;
-    border-radius: 16px;
-    padding: 1.75rem 2rem;
-    box-shadow: 0 4px 40px rgba(0,0,0,0.4);
+    background: rgba(18, 22, 31, 0.7);
+    backdrop-filter: blur(16px);
+    border: 1px solid rgba(255, 255, 255, 0.07);
+    border-radius: 20px;
+    padding: 2.2rem;
+    box-shadow: 0 12px 40px -10px rgba(0, 0, 0, 0.5);
 }
 
-/* ── Label ── */
+/* ── Field Labels ── */
 .gs-label {
-    font-size: 0.75rem; font-weight: 600; letter-spacing: 0.08em;
-    text-transform: uppercase; color: #6b7280; margin-bottom: 0.35rem;
+    font-size: 0.73rem;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: #94a3b8;
+    margin-bottom: 0.5rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+.gs-label-tag {
+    font-size: 0.68rem;
+    color: #64748b;
+    font-weight: 500;
+    text-transform: none;
+    letter-spacing: normal;
 }
 
-/* ── Text input ── */
+/* ── Form Inputs ── */
 .stTextInput > div > div > input {
-    background: #0d0f14 !important; border: 1px solid #1f2535 !important;
-    border-radius: 10px !important; color: #e2e8f0 !important;
-    font-size: 0.93rem !important; padding: 0.72rem 1rem !important;
-    transition: border-color 0.2s;
+    background: rgba(11, 13, 18, 0.8) !important;
+    border: 1px solid rgba(255, 255, 255, 0.09) !important;
+    border-radius: 12px !important;
+    color: #f8fafc !important;
+    font-size: 0.93rem !important;
+    padding: 0.8rem 1.1rem !important;
+    transition: all 0.2s ease !important;
+    font-weight: 400 !important;
 }
 .stTextInput > div > div > input:focus {
-    border-color: #6c8fff !important;
-    box-shadow: 0 0 0 3px rgba(108,143,255,0.12) !important; outline: none !important;
+    border-color: #818cf8 !important;
+    box-shadow: 0 0 0 4px rgba(129, 140, 248, 0.15) !important;
+    outline: none !important;
+    background: rgba(11, 13, 18, 0.95) !important;
 }
-.stTextInput > div > div > input::placeholder { color: #374151 !important; }
+.stTextInput > div > div > input::placeholder {
+    color: #475569 !important;
+}
 .stTextInput label { display: none !important; }
 
-/* ── File uploader ── */
+/* ── File Uploader ── */
 [data-testid="stFileUploader"] {
-    background: #0d0f14 !important; border: 1px dashed #1f2535 !important;
-    border-radius: 10px !important;
+    background: rgba(11, 13, 18, 0.6) !important;
+    border: 1.5px dashed rgba(255, 255, 255, 0.12) !important;
+    border-radius: 14px !important;
+    padding: 1.2rem !important;
+    transition: all 0.2s ease !important;
 }
-[data-testid="stFileUploader"]:hover { border-color: #374151 !important; }
-[data-testid="stFileUploader"] p, [data-testid="stFileUploader"] span { color: #6b7280 !important; font-size: 0.88rem !important; }
-[data-testid="stFileUploaderDropzoneInstructions"] { color: #6b7280 !important; }
+[data-testid="stFileUploader"]:hover {
+    border-color: rgba(129, 140, 248, 0.4) !important;
+    background: rgba(11, 13, 18, 0.8) !important;
+}
+[data-testid="stFileUploader"] p, 
+[data-testid="stFileUploader"] span {
+    color: #94a3b8 !important;
+    font-size: 0.88rem !important;
+}
+[data-testid="stFileUploader"] button {
+    background: rgba(255, 255, 255, 0.06) !important;
+    border: 1px solid rgba(255, 255, 255, 0.1) !important;
+    border-radius: 8px !important;
+    color: #f1f5f9 !important;
+}
 
-/* ── Select / Radio ── */
+/* ── Selectbox & Radio ── */
 .stSelectbox [data-baseweb="select"] > div {
-    background: #0d0f14 !important; border-color: #1f2535 !important;
-    border-radius: 10px !important; color: #e2e8f0 !important;
+    background: rgba(11, 13, 18, 0.8) !important;
+    border-color: rgba(255, 255, 255, 0.09) !important;
+    border-radius: 12px !important;
+    color: #f8fafc !important;
+    font-size: 0.9rem !important;
 }
-.stRadio label { font-size: 0.88rem !important; color: #9ca3af !important; }
-.stRadio [data-testid="stMarkdownContainer"] p { font-size: 0.88rem; }
+.stRadio label {
+    font-size: 0.88rem !important;
+    color: #cbd5e1 !important;
+}
 
-/* ── Primary button ── */
+/* ── Primary Button ── */
 .stButton > button[kind="primary"] {
-    background: linear-gradient(135deg, #6c8fff 0%, #4f46e5 100%) !important;
-    border: none !important; border-radius: 10px !important; color: #ffffff !important;
-    font-size: 0.9rem !important; font-weight: 600 !important;
-    padding: 0.72rem 1.5rem !important; width: 100% !important;
-    transition: opacity 0.2s, transform 0.15s !important;
+    background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%) !important;
+    border: none !important;
+    border-radius: 12px !important;
+    color: #ffffff !important;
+    font-size: 0.93rem !important;
+    font-weight: 700 !important;
+    letter-spacing: 0.01em !important;
+    padding: 0.82rem 1.6rem !important;
+    width: 100% !important;
+    box-shadow: 0 4px 16px rgba(79, 70, 229, 0.3) !important;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
 }
-.stButton > button[kind="primary"]:hover { opacity: 0.88 !important; transform: translateY(-1px) !important; }
-.stButton > button[kind="primary"]:disabled { opacity: 0.32 !important; cursor: not-allowed !important; transform: none !important; }
+.stButton > button[kind="primary"]:hover {
+    box-shadow: 0 8px 24px rgba(79, 70, 229, 0.45) !important;
+    transform: translateY(-2px) !important;
+    opacity: 0.95 !important;
+}
+.stButton > button[kind="primary"]:active {
+    transform: translateY(0) !important;
+}
+.stButton > button[kind="primary"]:disabled {
+    opacity: 0.35 !important;
+    box-shadow: none !important;
+    cursor: not-allowed !important;
+    transform: none !important;
+}
 
-/* ── Secondary button ── */
+/* ── Secondary Button ── */
 .stButton > button[kind="secondary"] {
-    background: transparent !important; border: 1px solid #1f2535 !important;
-    border-radius: 10px !important; color: #9ca3af !important;
-    font-size: 0.88rem !important; font-weight: 500 !important; width: 100% !important;
-    transition: border-color 0.2s, color 0.2s !important;
+    background: rgba(255, 255, 255, 0.04) !important;
+    border: 1px solid rgba(255, 255, 255, 0.1) !important;
+    border-radius: 12px !important;
+    color: #cbd5e1 !important;
+    font-size: 0.88rem !important;
+    font-weight: 600 !important;
+    width: 100% !important;
+    padding: 0.72rem 1.2rem !important;
+    transition: all 0.2s ease !important;
 }
-.stButton > button[kind="secondary"]:hover { border-color: #374151 !important; color: #e2e8f0 !important; }
+.stButton > button[kind="secondary"]:hover {
+    background: rgba(255, 255, 255, 0.08) !important;
+    border-color: rgba(255, 255, 255, 0.2) !important;
+    color: #ffffff !important;
+}
 
-/* ── Download button ── */
+/* ── Download Button ── */
 .stDownloadButton > button {
-    background: #161a24 !important; border: 1px solid #6c8fff !important;
-    border-radius: 10px !important; color: #6c8fff !important;
-    font-size: 0.9rem !important; font-weight: 600 !important;
-    padding: 0.72rem 1.5rem !important; width: 100% !important;
-    transition: background 0.2s, color 0.2s !important;
+    background: rgba(99, 102, 241, 0.1) !important;
+    border: 1px solid rgba(129, 140, 248, 0.4) !important;
+    border-radius: 12px !important;
+    color: #818cf8 !important;
+    font-size: 0.92rem !important;
+    font-weight: 700 !important;
+    padding: 0.82rem 1.6rem !important;
+    width: 100% !important;
+    transition: all 0.2s ease !important;
+    box-shadow: 0 4px 16px rgba(99, 102, 241, 0.1) !important;
 }
-.stDownloadButton > button:hover { background: #6c8fff !important; color: #ffffff !important; }
+.stDownloadButton > button:hover {
+    background: #6366f1 !important;
+    color: #ffffff !important;
+    box-shadow: 0 8px 24px rgba(99, 102, 241, 0.35) !important;
+    transform: translateY(-1px) !important;
+}
 
-/* ── Progress bar ── */
-.stProgress > div > div { background: #1f2535 !important; border-radius: 99px !important; height: 5px !important; }
-.stProgress > div > div > div { background: linear-gradient(90deg, #6c8fff, #4f46e5) !important; border-radius: 99px !important; }
+/* ── Progress Bar ── */
+.stProgress > div > div {
+    background: rgba(255, 255, 255, 0.06) !important;
+    border-radius: 99px !important;
+    height: 6px !important;
+}
+.stProgress > div > div > div {
+    background: linear-gradient(90deg, #6366f1, #a855f7) !important;
+    border-radius: 99px !important;
+}
 
-/* ── Boxes ── */
+/* ── Custom Component Boxes ── */
 .gs-status-box {
-    background: #0d0f14; border: 1px solid #1f2535; border-radius: 10px;
-    padding: 0.85rem 1rem; margin: 0.65rem 0;
+    background: rgba(11, 13, 18, 0.7);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 14px;
+    padding: 1rem 1.25rem;
+    margin: 0.8rem 0;
 }
-.gs-status-text { font-size: 0.85rem; color: #9ca3af; }
-.gs-status-hint { font-size: 0.77rem; color: #374151; margin-top: 0.25rem; }
+.gs-status-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.25rem;
+}
+.gs-status-badge {
+    font-size: 0.65rem;
+    font-weight: 800;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    padding: 0.2rem 0.5rem;
+    border-radius: 6px;
+    background: rgba(99, 102, 241, 0.15);
+    color: #818cf8;
+    border: 1px solid rgba(99, 102, 241, 0.25);
+}
+.gs-status-text {
+    font-size: 0.88rem;
+    color: #e2e8f0;
+    font-weight: 500;
+}
+.gs-status-hint {
+    font-size: 0.78rem;
+    color: #64748b;
+    margin-top: 0.2rem;
+}
 
 .gs-result {
-    background: #0d1a12; border: 1px solid #166534; border-radius: 10px;
-    padding: 0.85rem 1rem; margin: 0.65rem 0;
+    background: rgba(16, 185, 129, 0.06);
+    border: 1px solid rgba(16, 185, 129, 0.25);
+    border-radius: 14px;
+    padding: 1.1rem 1.25rem;
+    margin: 0.8rem 0;
 }
-.gs-result-label { font-size: 0.73rem; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: #22c55e; margin-bottom: 0.15rem; }
-.gs-result-name { font-size: 0.9rem; color: #e2e8f0; font-weight: 500; word-break: break-all; }
-.gs-result-meta { font-size: 0.77rem; color: #6b7280; margin-top: 0.2rem; }
+.gs-result-badge {
+    display: inline-block;
+    font-size: 0.65rem;
+    font-weight: 800;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    padding: 0.2rem 0.55rem;
+    border-radius: 6px;
+    background: rgba(16, 185, 129, 0.15);
+    color: #34d399;
+    border: 1px solid rgba(16, 185, 129, 0.3);
+    margin-bottom: 0.4rem;
+}
+.gs-result-name {
+    font-size: 0.95rem;
+    color: #f8fafc;
+    font-weight: 600;
+    word-break: break-all;
+}
+.gs-result-meta {
+    font-size: 0.8rem;
+    color: #94a3b8;
+    margin-top: 0.3rem;
+}
 
 .gs-error {
-    background: #1a0d0d; border: 1px solid #7f1d1d; border-radius: 10px;
-    padding: 0.85rem 1rem; margin: 0.65rem 0;
+    background: rgba(239, 68, 68, 0.06);
+    border: 1px solid rgba(239, 68, 68, 0.25);
+    border-radius: 14px;
+    padding: 1.1rem 1.25rem;
+    margin: 0.8rem 0;
 }
-.gs-error-label { font-size: 0.73rem; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: #ef4444; margin-bottom: 0.15rem; }
-.gs-error-msg { font-size: 0.87rem; color: #fca5a5; }
+.gs-error-badge {
+    display: inline-block;
+    font-size: 0.65rem;
+    font-weight: 800;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    padding: 0.2rem 0.55rem;
+    border-radius: 6px;
+    background: rgba(239, 68, 68, 0.15);
+    color: #f87171;
+    border: 1px solid rgba(239, 68, 68, 0.3);
+    margin-bottom: 0.4rem;
+}
+.gs-error-msg {
+    font-size: 0.9rem;
+    color: #fecaca;
+    font-weight: 400;
+}
 
 .gs-compress-prompt {
-    background: #0d1220; border: 1px solid #1f2d4d; border-radius: 10px;
-    padding: 0.85rem 1rem; margin: 0.65rem 0;
+    background: rgba(99, 102, 241, 0.05);
+    border: 1px solid rgba(99, 102, 241, 0.2);
+    border-radius: 14px;
+    padding: 1rem 1.25rem;
+    margin: 0.8rem 0;
 }
-.gs-compress-label { font-size: 0.73rem; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: #6c8fff; margin-bottom: 0.15rem; }
-.gs-compress-desc { font-size: 0.85rem; color: #6b7280; }
+.gs-compress-badge {
+    display: inline-block;
+    font-size: 0.65rem;
+    font-weight: 800;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    padding: 0.2rem 0.55rem;
+    border-radius: 6px;
+    background: rgba(99, 102, 241, 0.12);
+    color: #a5b4fc;
+    border: 1px solid rgba(99, 102, 241, 0.25);
+    margin-bottom: 0.3rem;
+}
+.gs-compress-title {
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: #f1f5f9;
+}
+.gs-compress-desc {
+    font-size: 0.82rem;
+    color: #94a3b8;
+    margin-top: 0.15rem;
+}
 
-.gs-divider { height: 1px; background: #1f2535; margin: 1.25rem 0; }
-.gs-spacer { height: 0.75rem; }
-.gs-spacer-sm { height: 0.4rem; }
+.gs-divider {
+    height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.09), transparent);
+    margin: 1.4rem 0;
+}
+.gs-spacer { height: 0.85rem; }
+.gs-spacer-sm { height: 0.45rem; }
 
-/* ── Stat pill ── */
-.gs-stats { display: flex; gap: 0.75rem; margin: 0.5rem 0; }
+/* ── Stats Pill Grid ── */
+.gs-stats {
+    display: flex;
+    gap: 0.75rem;
+    margin: 0.75rem 0 1rem 0;
+}
 .gs-stat {
-    background: #0d0f14; border: 1px solid #1f2535; border-radius: 8px;
-    padding: 0.4rem 0.8rem; font-size: 0.78rem; color: #6b7280; flex: 1; text-align: center;
+    background: rgba(11, 13, 18, 0.6);
+    border: 1px solid rgba(255, 255, 255, 0.07);
+    border-radius: 12px;
+    padding: 0.6rem 0.8rem;
+    font-size: 0.75rem;
+    color: #64748b;
+    flex: 1;
+    text-align: center;
+    font-weight: 500;
 }
-.gs-stat strong { display: block; font-size: 0.9rem; color: #e2e8f0; font-weight: 600; }
-.gs-stat-green strong { color: #22c55e; }
+.gs-stat strong {
+    display: block;
+    font-size: 0.95rem;
+    color: #f1f5f9;
+    font-weight: 700;
+    margin-bottom: 0.1rem;
+}
+.gs-stat-highlight strong {
+    color: #34d399;
+}
 
-/* ── Sidebar ── */
-section[data-testid="stSidebar"] { background: #0d0f14 !important; border-right: 1px solid #1f2535 !important; }
-section[data-testid="stSidebar"] h2, section[data-testid="stSidebar"] h3 { color: #e2e8f0; font-size: 0.9rem; font-weight: 600; }
-section[data-testid="stSidebar"] p, section[data-testid="stSidebar"] li { color: #6b7280; font-size: 0.82rem; line-height: 1.7; }
-section[data-testid="stSidebar"] strong { color: #9ca3af; }
-section[data-testid="stSidebar"] code { background: #161a24; border: 1px solid #1f2535; border-radius: 4px; padding: 1px 5px; font-size: 0.79rem; color: #6c8fff; }
+/* ── Sidebar Styling ── */
+section[data-testid="stSidebar"] {
+    background: #080a0e !important;
+    border-right: 1px solid rgba(255, 255, 255, 0.06) !important;
+}
+section[data-testid="stSidebar"] h3 {
+    color: #f8fafc;
+    font-size: 0.9rem;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    margin-top: 1rem;
+}
+section[data-testid="stSidebar"] p, 
+section[data-testid="stSidebar"] li {
+    color: #94a3b8;
+    font-size: 0.83rem;
+    line-height: 1.65;
+}
+section[data-testid="stSidebar"] strong {
+    color: #cbd5e1;
+}
+section[data-testid="stSidebar"] code {
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 4px;
+    padding: 1px 6px;
+    font-size: 0.78rem;
+    color: #818cf8;
+}
 
 .stAlert { display: none !important; }
 </style>
+
 """, unsafe_allow_html=True)
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -433,8 +717,9 @@ def _run_inline_compress(pdf_bytes: bytes, filename: str, quality: str):
 # ─────────────────────────────────────────────────────────────────────────────
 st.markdown("""
 <div class="gs-hero">
+    <div class="gs-badge-header">STUDIO UTILITY</div>
     <div class="gs-wordmark">GDrive<span>Saver</span></div>
-    <div class="gs-tagline">Công cụ tải và tối ưu tài liệu Google Drive</div>
+    <div class="gs-tagline">Công cụ tải và tối ưu tài liệu Google Drive chuyên nghiệp</div>
 </div>
 """, unsafe_allow_html=True)
 
@@ -449,10 +734,16 @@ tab_dl, tab_compress = st.tabs(["Tải xuống GDrive", "Nén file PDF"])
 with tab_dl:
     st.markdown('<div class="gs-card">', unsafe_allow_html=True)
 
-    st.markdown('<div class="gs-label">Link Google Drive</div>', unsafe_allow_html=True)
+    st.markdown("""
+    <div class="gs-label">
+        <span>LINK GOOGLE DRIVE</span>
+        <span class="gs-label-tag">File đơn lẻ hoặc Thư mục</span>
+    </div>
+    """, unsafe_allow_html=True)
+    
     url_input = st.text_input(
         label="url",
-        placeholder="https://drive.google.com/file/d/...  hoặc  /drive/folders/...",
+        placeholder="Dán đường dẫn https://drive.google.com/file/d/... tại đây",
         disabled=state.running,
         label_visibility="collapsed",
         key="url_input",
@@ -474,8 +765,11 @@ with tab_dl:
         st.progress(state.progress)
         st.markdown(f"""
 <div class="gs-status-box">
-    <div class="gs-status-text">{state.status_msg or "Đang xử lý..."}</div>
-    <div class="gs-status-hint">Trình duyệt đang chạy ngầm — vui lòng không đóng trang</div>
+    <div class="gs-status-header">
+        <span class="gs-status-badge">ĐANG XỬ LÝ</span>
+    </div>
+    <div class="gs-status-text">{state.status_msg or "Đang tiến hành..."}</div>
+    <div class="gs-status-hint">Trình duyệt ảo đang làm việc — vui lòng giữ nguyên trang web</div>
 </div>
 """, unsafe_allow_html=True)
 
@@ -484,7 +778,7 @@ with tab_dl:
         st.markdown('<div class="gs-divider"></div>', unsafe_allow_html=True)
         st.markdown(f"""
 <div class="gs-error">
-    <div class="gs-error-label">Đã xảy ra lỗi</div>
+    <span class="gs-error-badge">LỖI XỬ LÝ</span>
     <div class="gs-error-msg">{state.error}</div>
 </div>
 """, unsafe_allow_html=True)
@@ -499,13 +793,13 @@ with tab_dl:
         file_size = _fmt_size(len(state.pdf_bytes))
         st.markdown(f"""
 <div class="gs-result">
-    <div class="gs-result-label">Sẵn sàng tải xuống</div>
+    <span class="gs-result-badge">TẢI THÀNH CÔNG</span>
     <div class="gs-result-name">{state.pdf_filename}</div>
-    <div class="gs-result-meta">Kích thước: {file_size}</div>
+    <div class="gs-result-meta">Kích thước file: {file_size}</div>
 </div>
 """, unsafe_allow_html=True)
         st.download_button(
-            label="Tải file PDF",
+            label="Tải file PDF về máy",
             data=state.pdf_bytes,
             file_name=state.pdf_filename,
             mime="application/pdf",
@@ -519,8 +813,9 @@ with tab_dl:
         if not state.compress_done and not state.compress_running:
             st.markdown("""
 <div class="gs-compress-prompt">
-    <div class="gs-compress-label">Muốn tối ưu dung lượng?</div>
-    <div class="gs-compress-desc">Nén file PDF vừa tải để giảm kích thước trước khi lưu.</div>
+    <span class="gs-compress-badge">TỐI ƯU DUNG LƯỢNG</span>
+    <div class="gs-compress-title">Tối ưu nén file PDF vừa tải</div>
+    <div class="gs-compress-desc">Giảm dung lượng file giúp lưu trữ và chia sẻ nhanh chóng hơn.</div>
 </div>
 """, unsafe_allow_html=True)
             col_q, col_b = st.columns([2, 1])
@@ -528,7 +823,7 @@ with tab_dl:
                 inline_quality = st.selectbox(
                     "Chất lượng nén",
                     options=list(_QUALITY_MAP.keys()),
-                    index=1,  # Cân bằng mặc định
+                    index=1,
                     key="inline_quality",
                     label_visibility="collapsed",
                 )
@@ -548,15 +843,18 @@ with tab_dl:
         if state.compress_running:
             st.markdown("""
 <div class="gs-status-box">
-    <div class="gs-status-text">Đang nén file...</div>
-    <div class="gs-status-hint">Ghostscript đang xử lý — vui lòng chờ</div>
+    <div class="gs-status-header">
+        <span class="gs-status-badge">ĐANG NÉN FILE</span>
+    </div>
+    <div class="gs-status-text">Đang tối ưu dung lượng...</div>
+    <div class="gs-status-hint">Ghostscript đang xử lý file PDF — vui lòng chờ giây lát</div>
 </div>
 """, unsafe_allow_html=True)
 
         if state.compress_error:
             st.markdown(f"""
 <div class="gs-error">
-    <div class="gs-error-label">Lỗi nén file</div>
+    <span class="gs-error-badge">LỖI NÉN FILE</span>
     <div class="gs-error-msg">{state.compress_error}</div>
 </div>
 """, unsafe_allow_html=True)
@@ -567,17 +865,17 @@ with tab_dl:
             ratio = round((1 - state.compress_size / max(state.compress_original_size, 1)) * 100)
             st.markdown(f"""
 <div class="gs-result">
-    <div class="gs-result-label">File đã được nén</div>
+    <span class="gs-result-badge">NÉN THÀNH CÔNG</span>
     <div class="gs-result-name">{state.compress_filename}</div>
 </div>
 <div class="gs-stats">
-    <div class="gs-stat"><strong>{orig}</strong>Ban đầu</div>
-    <div class="gs-stat gs-stat-green"><strong>{comp}</strong>Sau nén</div>
-    <div class="gs-stat gs-stat-green"><strong>-{ratio}%</strong>Giảm</div>
+    <div class="gs-stat"><strong>{orig}</strong>Dung lượng gốc</div>
+    <div class="gs-stat gs-stat-highlight"><strong>{comp}</strong>Sau khi nén</div>
+    <div class="gs-stat gs-stat-highlight"><strong>-{ratio}%</strong>Tiết kiệm</div>
 </div>
 """, unsafe_allow_html=True)
             st.download_button(
-                label="Tải file đã nén",
+                label="Tải file PDF đã nén",
                 data=state.compress_bytes,
                 file_name=state.compress_filename,
                 mime="application/pdf",
@@ -599,7 +897,13 @@ with tab_dl:
 with tab_compress:
     st.markdown('<div class="gs-card">', unsafe_allow_html=True)
 
-    st.markdown('<div class="gs-label">Chọn file PDF cần nén</div>', unsafe_allow_html=True)
+    st.markdown("""
+    <div class="gs-label">
+        <span>TẬP TIN CẦN NÉN</span>
+        <span class="gs-label-tag">Định dạng .pdf</span>
+    </div>
+    """, unsafe_allow_html=True)
+
     uploaded = st.file_uploader(
         label="pdf_upload",
         type=["pdf"],
@@ -611,13 +915,16 @@ with tab_compress:
         st.markdown('<div class="gs-spacer-sm"></div>', unsafe_allow_html=True)
         st.markdown(f"""
 <div class="gs-status-box">
+    <div class="gs-status-header">
+        <span class="gs-status-badge">TẬP TIN ĐÃ CHỌN</span>
+    </div>
     <div class="gs-status-text">{uploaded.name}</div>
-    <div class="gs-status-hint">Kích thước gốc: {_fmt_size(uploaded.size)}</div>
+    <div class="gs-status-hint">Dung lượng ban đầu: {_fmt_size(uploaded.size)}</div>
 </div>
 """, unsafe_allow_html=True)
 
     st.markdown('<div class="gs-spacer"></div>', unsafe_allow_html=True)
-    st.markdown('<div class="gs-label">Mức chất lượng sau nén</div>', unsafe_allow_html=True)
+    st.markdown('<div class="gs-label"><span>MỨC ĐỘ NÉN DUNG LƯỢNG</span></div>', unsafe_allow_html=True)
     quality_choice = st.radio(
         label="quality",
         options=list(_QUALITY_MAP.keys()),
@@ -629,7 +936,6 @@ with tab_compress:
 
     st.markdown('<div class="gs-spacer"></div>', unsafe_allow_html=True)
 
-    # Compress state for standalone tab
     if "sc" not in st.session_state:
         st.session_state.sc = {
             "running": False, "done": False,
@@ -652,7 +958,7 @@ with tab_compress:
             sc["running"] = False
 
     compress_btn = st.button(
-        "Nén file",
+        "Nén tập tin",
         type="primary",
         disabled=uploaded is None or sc["running"],
         use_container_width=True,
@@ -677,8 +983,11 @@ with tab_compress:
         st.markdown('<div class="gs-divider"></div>', unsafe_allow_html=True)
         st.markdown("""
 <div class="gs-status-box">
-    <div class="gs-status-text">Đang nén file...</div>
-    <div class="gs-status-hint">Ghostscript đang xử lý — vui lòng chờ</div>
+    <div class="gs-status-header">
+        <span class="gs-status-badge">ĐANG XỬ LÝ</span>
+    </div>
+    <div class="gs-status-text">Thuật toán Ghostscript đang tối ưu dung lượng...</div>
+    <div class="gs-status-hint">Vui lòng chờ trong giây lát</div>
 </div>
 """, unsafe_allow_html=True)
 
@@ -686,7 +995,7 @@ with tab_compress:
         st.markdown('<div class="gs-divider"></div>', unsafe_allow_html=True)
         st.markdown(f"""
 <div class="gs-error">
-    <div class="gs-error-label">Đã xảy ra lỗi</div>
+    <span class="gs-error-badge">LỖI THỰC THI</span>
     <div class="gs-error-msg">{sc["error"]}</div>
 </div>
 """, unsafe_allow_html=True)
@@ -701,17 +1010,17 @@ with tab_compress:
         st.markdown('<div class="gs-divider"></div>', unsafe_allow_html=True)
         st.markdown(f"""
 <div class="gs-result">
-    <div class="gs-result-label">Nén hoàn tất</div>
+    <span class="gs-result-badge">NÉN HOÀN TẤT</span>
     <div class="gs-result-name">{sc["filename"]}</div>
 </div>
 <div class="gs-stats">
-    <div class="gs-stat"><strong>{orig}</strong>Ban đầu</div>
-    <div class="gs-stat gs-stat-green"><strong>{comp}</strong>Sau nén</div>
-    <div class="gs-stat gs-stat-green"><strong>-{ratio}%</strong>Giảm</div>
+    <div class="gs-stat"><strong>{orig}</strong>Dung lượng gốc</div>
+    <div class="gs-stat gs-stat-highlight"><strong>{comp}</strong>Sau khi nén</div>
+    <div class="gs-stat gs-stat-highlight"><strong>-{ratio}%</strong>Tiết kiệm</div>
 </div>
 """, unsafe_allow_html=True)
         st.download_button(
-            label="Tải file đã nén",
+            label="Tải file PDF đã nén",
             data=sc["result"],
             file_name=sc["filename"],
             mime="application/pdf",
@@ -724,6 +1033,7 @@ with tab_compress:
             st.rerun()
 
     st.markdown('</div>', unsafe_allow_html=True)  # end .gs-card
+
 
 # ─────────────────────────────────────────────────────────────────────────────
 #  Sidebar
