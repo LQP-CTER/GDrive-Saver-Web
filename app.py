@@ -770,14 +770,14 @@ with tab_dl:
 
     st.markdown("""
     <div class="gs-label">
-        <span>LINK GOOGLE DRIVE</span>
-        <span class="gs-label-tag">File đơn lẻ hoặc Thư mục</span>
+        <span>LINK GOOGLE DRIVE & GOOGLE SLIDES</span>
+        <span class="gs-label-tag">PDF, Slides, Docs, Thư mục</span>
     </div>
     """, unsafe_allow_html=True)
     
     url_input = st.text_input(
         label="url",
-        placeholder="Dán đường dẫn https://drive.google.com/file/d/... tại đây",
+        placeholder="Dán đường dẫn Google Drive / Presentation tại đây...",
         disabled=state.running,
         label_visibility="collapsed",
         key="url_input",

@@ -195,7 +195,9 @@ class BrowserHandler:
                 var blobs = document.querySelectorAll('img[src^="blob:"]').length;
                 var canvases = document.querySelectorAll('canvas').length;
                 var dataImgs = document.querySelectorAll('img[src^="data:"]').length;
-                return blobs + canvases + dataImgs;
+                var svgs = document.querySelectorAll('svg').length;
+                var slideElements = document.querySelectorAll('[role="option"], .punch-viewer-content, .slide-content, [aria-label*="Slide"], [aria-label*="Trang chiếu"]').length;
+                return blobs + canvases + dataImgs + (svgs > 2 ? svgs : 0) + slideElements;
             """) or 0
             if result > 0:
                 log_info(f"Content ready: {result} rendered element(s) detected")
@@ -330,11 +332,16 @@ class BrowserHandler:
                     if (m2) return parseInt(m2[1]);
                 }
             }
-            // Method 2: thumbnail sidebar items
+            // Method 2: Google Slides filmstrip thumbnails or options
+            let slideThumbs = document.querySelectorAll('div[role="option"], .goog-inline-block.slide-thumbnail, .punch-filmstrip-thumbnail');
+            if (slideThumbs.length > 0) return slideThumbs.length;
+
+            // Method 3: thumbnail sidebar items
             let thumbs = document.querySelectorAll('[id^="shDDDe"]');
             if (thumbs.length > 0) return thumbs.length;
-            // Method 3: page containers  
-            let pages = document.querySelectorAll('[role="img"][aria-label*="Page"], [role="img"][aria-label*="Trang"]');
+
+            // Method 4: page / slide containers  
+            let pages = document.querySelectorAll('[role="img"][aria-label*="Page"], [role="img"][aria-label*="Trang"], [role="img"][aria-label*="Slide"], [role="img"][aria-label*="Trang chiếu"]');
             if (pages.length > 0) return pages.length;
             return 0;
             """)
@@ -633,13 +640,24 @@ class BrowserHandler:
             data_urls = self.driver.execute_script("""
             let results = [];
             let containers = document.querySelectorAll(
-                '[role="img"][aria-label*="Page"], [role="img"][aria-label*="Trang"], '
-                + '.drive-viewer-paginated-page, .ndfHFb-c4YZDc-Wrber-SM8H3c-V1ur5d'
+                '[role="img"][aria-label*="Page"], [role="img"][aria-label*="Trang"], [role="img"][aria-label*="Slide"], '
+                + '.drive-viewer-paginated-page, .ndfHFb-c4YZDc-Wrber-SM8H3c-V1ur5d, .punch-viewer-content, .slide-content'
             );
+            // Check canvas elements first (used by some Google Presentations)
+            let canvases = document.querySelectorAll('canvas');
+            for (let c of canvases) {
+                if (c.width > 200 && c.height > 200) {
+                    try {
+                        results.push(c.toDataURL('image/png'));
+                    } catch(e) {}
+                }
+            }
+            if (results.length > 0) return results;
+
             if (containers.length === 0) {
                 let allImgs = document.querySelectorAll('img');
                 for (let img of allImgs) {
-                    if (img.naturalWidth > 400 && img.naturalHeight > 400) {
+                    if (img.naturalWidth > 300 && img.naturalHeight > 300) {
                         try {
                             let c = document.createElement('canvas');
                             c.width = img.naturalWidth; c.height = img.naturalHeight;
