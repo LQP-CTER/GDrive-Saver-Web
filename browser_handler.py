@@ -4,6 +4,8 @@ and provides methods for interacting with Google Drive viewer.
 """
 
 import os
+import sys
+import shutil
 import time
 import base64
 import json
@@ -32,6 +34,32 @@ class BrowserHandler:
         self.driver: Optional[uc.Chrome] = None
         self._total_pages: int = 0
     
+    @staticmethod
+    def _find_chrome_binary() -> str:
+        """
+        Locate the Chrome/Chromium executable.
+        Checks config override first, then auto-discovers on Linux
+        (needed for Streamlit Cloud / Docker environments).
+        Returns empty string if nothing found (uc will use its own default).
+        """
+        if config.CHROME_USER_DATA_DIR:
+            # User explicitly configured a path — don't override
+            return ""
+        if not sys.platform.startswith("linux"):
+            return ""
+        candidates = [
+            "chromium-browser",
+            "chromium",
+            "google-chrome",
+            "google-chrome-stable",
+        ]
+        for name in candidates:
+            path = shutil.which(name)
+            if path:
+                log_info(f"Auto-detected Chrome binary: {path}")
+                return path
+        return ""
+
     def start(self) -> "uc.Chrome":
         """Initialize and return a configured Chrome WebDriver."""
         log_info("Initializing Chrome browser (undetected)...")
@@ -47,17 +75,19 @@ class BrowserHandler:
         options.add_argument("--disable-dev-shm-usage")
         options.add_argument("--disable-extensions")
         options.add_argument("--disable-infobars")
+        # Required in shared/containerized Linux environments (Streamlit Cloud, Docker)
+        options.add_argument("--disable-setuid-sandbox")
+        options.add_argument("--remote-debugging-port=0")
         
         if config.CHROME_USER_DATA_DIR:
             options.add_argument(f"--user-data-dir={config.CHROME_USER_DATA_DIR}")
             options.add_argument(f"--profile-directory={config.CHROME_PROFILE}")
             log_info(f"Using Chrome profile: {config.CHROME_PROFILE}")
         
-        prefs = {
-            "plugins.always_open_pdf_externally": False,
-            "download.prompt_for_download": False,
-        }
-        options.add_experimental_option("prefs", prefs)
+        # Point to system Chromium on Linux if available
+        chrome_bin = self._find_chrome_binary()
+        if chrome_bin:
+            options.binary_location = chrome_bin
         
         try:
             self.driver = uc.Chrome(options=options, use_subprocess=True)
@@ -77,8 +107,9 @@ class BrowserHandler:
             log_error(f"Failed to start Chrome: {e}")
             raise RuntimeError(
                 "Could not start Chrome browser. Make sure:\n"
-                "  1. Google Chrome is installed\n"
-                "  2. Chrome version is compatible"
+                "  1. Google Chrome / Chromium is installed\n"
+                "  2. Chrome version is compatible\n"
+                "  3. On Streamlit Cloud: packages.txt must contain 'chromium' and 'chromium-driver'"
             )
     
     def open_file(self, url: str) -> bool:
