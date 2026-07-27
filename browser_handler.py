@@ -365,6 +365,19 @@ class BrowserHandler:
         # Step 1: Find the scrollable container
         found = self.driver.execute_script("""
         let best = null, bestH = 0;
+        
+        // Check for known Google Drive viewer scroll containers explicitly first
+        let knownContainers = document.querySelectorAll('.ndfHFb-c4YZDc-Wrber-SM8H3c-V1ur5d, .punch-viewer-content');
+        if (knownContainers.length > 0) {
+            for (let c of knownContainers) {
+                if (c.clientHeight > 0) {
+                    window.__sc = c;
+                    return [c.scrollHeight, c.clientHeight];
+                }
+            }
+        }
+        
+        // Fallback heuristics
         for (let d of document.querySelectorAll('div')) {
             let s = window.getComputedStyle(d);
             let ov = s.overflow + s.overflowY;
@@ -500,6 +513,17 @@ class BrowserHandler:
         """
         total_pages = total_pages or self._total_pages
         
+        # Check if it's a presentation viewer (only shows current slide)
+        is_presentation = self.driver.execute_script(
+            "return !!document.querySelector('.punch-viewer-content, .punch-filmstrip-thumbnail, [role=\"option\"]');"
+        )
+        if is_presentation:
+            log_info("Detected Google Presentation format. Using slide-by-slide extraction...")
+            pres_images = self._extract_presentation_slides(total_pages, progress_callback)
+            if pres_images:
+                return pres_images
+            log_warning("Presentation extraction returned empty, falling back to standard extraction...")
+        
         # Try bulk extraction first
         if progress_callback:
             progress_callback(0, total_pages or 1, "Extracting loaded images...")
@@ -529,6 +553,63 @@ class BrowserHandler:
         log_error("Could not extract any page images")
         return []
     
+    def _extract_presentation_slides(self, total_pages: int, progress_callback=None) -> List[bytes]:
+        """Extract Google Presentation slides by simulating Next Slide keystrokes/clicks."""
+        images = []
+        try:
+            body = self.driver.find_element(By.TAG_NAME, "body")
+            
+            # Go to first slide via thumbnails or HOME key
+            self.driver.execute_script("""
+                let thumbs = document.querySelectorAll('.punch-filmstrip-thumbnail, [role="option"]');
+                if (thumbs.length > 0) thumbs[0].click();
+            """)
+            time.sleep(1)
+            body.send_keys(Keys.HOME)
+            time.sleep(1)
+
+            for i in range(total_pages or 1):
+                if progress_callback:
+                    progress_callback(i + 1, total_pages or 1, f"Extracting slide {i + 1}/{total_pages or 1}")
+                
+                # Extract current slide
+                # Try DOM extraction first
+                slide_imgs = self._extract_rendered_images()
+                if slide_imgs:
+                    # Append the largest image returned (usually the slide)
+                    images.append(slide_imgs[0])
+                else:
+                    # Fallback: Hide sidebar and take a screenshot of the viewport
+                    log_info(f"Using screenshot for slide {i+1}")
+                    self.driver.execute_script("""
+                        let sidebar = document.querySelector('.left-sidebar-container, .punch-filmstrip-container');
+                        if (sidebar) sidebar.style.display = 'none';
+                        let bars = document.querySelectorAll('.docs-material-gm-header, .punch-viewer-navbar, .ndfHFb-c4YZDc-Wrber-LgbsSe-haAclf');
+                        for (let b of bars) b.style.display = 'none';
+                    """)
+                    time.sleep(0.5)
+                    screenshot = self.driver.get_screenshot_as_png()
+                    if screenshot:
+                        images.append(screenshot)
+                    
+                    # Restore UI
+                    self.driver.execute_script("""
+                        let sidebar = document.querySelector('.left-sidebar-container, .punch-filmstrip-container');
+                        if (sidebar) sidebar.style.display = '';
+                        let bars = document.querySelectorAll('.docs-material-gm-header, .punch-viewer-navbar, .ndfHFb-c4YZDc-Wrber-LgbsSe-haAclf');
+                        for (let b of bars) b.style.display = '';
+                    """)
+
+                if i < (total_pages or 1) - 1:
+                    # Next slide
+                    body.send_keys(Keys.PAGE_DOWN)
+                    time.sleep(config.SCROLL_WAIT * 1.5)
+                    
+            return images
+        except Exception as e:
+            log_error(f"Presentation extraction failed: {e}")
+            return images
+
     def _extract_all_blobs(self) -> List[bytes]:
         """Extract all currently loaded blob images at once."""
         try:
