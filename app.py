@@ -602,7 +602,10 @@ def _fmt_size(n: int) -> str:
 def _make_progress_cb(base: float, span: float):
     def _cb(current: int, total: int, msg: str):
         state.status_msg = msg
-        state.progress = base + span * (current / max(total, 1))
+        # Bound the ratio to 1.0 in case current > total
+        ratio = min(current / max(total, 1), 1.0)
+        # Ensure final progress does not exceed 1.0 to prevent StreamlitAPIException
+        state.progress = min(base + span * ratio, 1.0)
     return _cb
 
 
