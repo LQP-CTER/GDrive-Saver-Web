@@ -556,85 +556,135 @@ class BrowserHandler:
     def capture_presentation_preview(self, total_pages: int = 0, progress_callback=None) -> List[bytes]:
         """
         Capture a Google Docs /preview page slide-by-slide.
-        Works with the public /preview endpoint (no login required for view-only files).
-        Navigates with RIGHT arrow key and screenshots the clean viewer area.
+        The /preview endpoint is publicly accessible for view-only files.
+        Strategy:
+          1. Wait for the iframe content to fully render (up to 20s).
+          2. Switch into the iframe if the viewer is embedded in one.
+          3. Navigate with JS keydown RIGHT_ARROW and screenshot each slide.
         """
         images = []
         try:
-            body = self.driver.find_element(By.TAG_NAME, "body")
+            # Wait extra time for /preview iframe to fully render
+            time.sleep(5)
 
-            # Click into the viewer so it accepts keyboard events
-            try:
-                viewer = self.driver.find_element(
-                    By.CSS_SELECTOR,
-                    ".punch-viewer-content, .docs-viewer-content, iframe, .goog-gesture-recognizer"
-                )
-                viewer.click()
-            except Exception:
-                body.click()
-            time.sleep(1)
+            # Dump iframe count and page title for debugging
+            iframes = self.driver.find_elements(By.TAG_NAME, "iframe")
+            log_info(f"/preview: {len(iframes)} iframe(s) found on page")
 
-            # Press HOME to ensure we're on slide 1
-            body.send_keys(Keys.HOME)
-            time.sleep(1.5)
+            # Try switching into the presentation iframe if present
+            presentation_frame = None
+            for iframe in iframes:
+                src = iframe.get_attribute("src") or ""
+                if "docs.google.com" in src or "presentation" in src or not src:
+                    try:
+                        self.driver.switch_to.frame(iframe)
+                        # Quick check if we're inside the slide viewer
+                        in_viewer = self.driver.execute_script(
+                            "return document.querySelector('.punch-viewer-content, canvas, [role=\"option\"]') !== null;"
+                        )
+                        if in_viewer:
+                            log_info("Switched into presentation iframe")
+                            presentation_frame = iframe
+                            break
+                        else:
+                            self.driver.switch_to.default_content()
+                    except Exception:
+                        self.driver.switch_to.default_content()
 
-            # Detect total slides from the DOM if not provided
+            # Focus the current context (works in both iframe and main frame)
+            self.driver.execute_script("document.body && document.body.focus();")
+            time.sleep(0.5)
+
+            # Detect total slides
             if not total_pages:
                 total_pages = self.driver.execute_script("""
-                    // Try slide counter text e.g. "1 / 21"
-                    let counter = document.querySelector('.punch-filmstrip-slide-number, .presenterSlideNumber, .ndfHFb-c4YZDc-EglORb');
+                    let counter = document.querySelector(
+                        '.punch-filmstrip-slide-number, .presenterSlideNumber'
+                    );
                     if (counter) {
                         let m = counter.textContent.match(/(\\d+)\\s*\\/\\s*(\\d+)/);
                         if (m) return parseInt(m[2]);
                     }
-                    // Fallback: filmstrip thumbnails
-                    return document.querySelectorAll('.punch-filmstrip-thumbnail, [role="option"]').length || 1;
-                """) or 1
+                    let thumbs = document.querySelectorAll('.punch-filmstrip-thumbnail, [role="option"]');
+                    if (thumbs.length) return thumbs.length;
+                    return 0;
+                """) or 0
+
+            # ponytail: if we can't detect slide count, just take 1 full-page screenshot
+            if total_pages == 0:
+                log_warning("/preview: could not detect slide count — taking single full-page screenshot")
+                self.driver.switch_to.default_content()
+                shot = self.driver.get_screenshot_as_png()
+                if shot:
+                    images.append(shot)
+                return images
 
             log_info(f"Capturing {total_pages} slide(s) via /preview screenshots")
+
+            # Navigate HOME first
+            self.driver.execute_script(
+                "document.dispatchEvent(new KeyboardEvent('keydown', {keyCode:36, bubbles:true}));"
+            )
+            time.sleep(1.5)
 
             for i in range(total_pages):
                 if progress_callback:
                     progress_callback(i + 1, total_pages, f"Chụp slide {i + 1}/{total_pages}")
 
-                # Hide UI chrome for a clean screenshot
+                time.sleep(1.0)
+
+                # Switch back to main frame for screenshot (captures full viewport)
+                if presentation_frame:
+                    self.driver.switch_to.default_content()
+
+                # Hide UI chrome
                 self.driver.execute_script("""
-                    let selectors = [
-                        '.punch-viewer-navbar', '.ndfHFb-c4YZDc-Wrber-LgbsSe-haAclf',
-                        '.punch-filmstrip-container', '.ndfHFb-c4YZDc-zsEIvc-jfdpUb-b0t70b',
-                        '.docs-material-gm-header', '.punch-viewer-presenter-control-bar',
-                        '.left-sidebar-container', 'header', '.punch-viewer-controls'
-                    ];
-                    for (let s of selectors) {
-                        document.querySelectorAll(s).forEach(e => e.style.setProperty('display','none','important'));
-                    }
+                    ['.punch-viewer-navbar','.ndfHFb-c4YZDc-Wrber-LgbsSe-haAclf',
+                     '.punch-filmstrip-container','.ndfHFb-c4YZDc-zsEIvc-jfdpUb-b0t70b',
+                     '.docs-material-gm-header','header','.punch-viewer-controls'
+                    ].forEach(s => document.querySelectorAll(s).forEach(
+                        e => e.style.setProperty('display','none','important')
+                    ));
                     window.dispatchEvent(new Event('resize'));
                 """)
-                time.sleep(1.2)
+                time.sleep(0.8)
 
-                screenshot = self.driver.get_screenshot_as_png()
-                if screenshot:
-                    images.append(screenshot)
+                shot = self.driver.get_screenshot_as_png()
+                if shot:
+                    images.append(shot)
 
-                # Restore UI before advancing (so next slide loads correctly)
+                # Restore and advance
                 self.driver.execute_script("""
-                    let selectors = [
-                        '.punch-viewer-navbar', '.ndfHFb-c4YZDc-Wrber-LgbsSe-haAclf',
-                        '.punch-filmstrip-container', '.ndfHFb-c4YZDc-zsEIvc-jfdpUb-b0t70b',
-                        '.docs-material-gm-header', '.punch-viewer-presenter-control-bar',
-                        '.left-sidebar-container', 'header', '.punch-viewer-controls'
-                    ];
-                    for (let s of selectors) {
-                        document.querySelectorAll(s).forEach(e => e.style.removeProperty('display'));
-                    }
+                    ['.punch-viewer-navbar','.ndfHFb-c4YZDc-Wrber-LgbsSe-haAclf',
+                     '.punch-filmstrip-container','.ndfHFb-c4YZDc-zsEIvc-jfdpUb-b0t70b',
+                     '.docs-material-gm-header','header','.punch-viewer-controls'
+                    ].forEach(s => document.querySelectorAll(s).forEach(
+                        e => e.style.removeProperty('display')
+                    ));
                 """)
 
                 if i < total_pages - 1:
-                    body.send_keys(Keys.ARROW_RIGHT)
+                    # Switch back into iframe to send key event
+                    if presentation_frame:
+                        try:
+                            self.driver.switch_to.frame(presentation_frame)
+                        except Exception:
+                            self.driver.switch_to.default_content()
+
+                    self.driver.execute_script(
+                        "document.dispatchEvent(new KeyboardEvent('keydown', {keyCode:39, bubbles:true}));"
+                    )
                     time.sleep(config.SCROLL_WAIT * 2)
+
+            # Always restore to default context
+            self.driver.switch_to.default_content()
 
         except Exception as e:
             log_error(f"Preview capture failed: {e}")
+            try:
+                self.driver.switch_to.default_content()
+            except Exception:
+                pass
 
         log_info(f"Captured {len(images)} slide screenshot(s)")
         return images
