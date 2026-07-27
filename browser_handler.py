@@ -11,8 +11,9 @@ import base64
 import json
 from typing import Optional, List, Tuple
 
-import undetected_chromedriver as uc
+from selenium import webdriver
 from selenium.webdriver.chrome.options import Options as ChromeOptions
+from selenium.webdriver.chrome.service import Service as ChromeService
 from selenium.webdriver.common.by import By
 from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.support.ui import WebDriverWait
@@ -22,6 +23,11 @@ from selenium.common.exceptions import (
     NoSuchElementException,
     WebDriverException
 )
+try:
+    from selenium_stealth import stealth as _apply_stealth
+    _HAS_STEALTH = True
+except ImportError:
+    _HAS_STEALTH = False
 
 import config
 from utils import log_info, log_warning, log_error, log_success, log_progress
@@ -31,78 +37,101 @@ class BrowserHandler:
     """Manages Chrome browser for Google Drive file access."""
 
     def __init__(self):
-        self.driver: Optional[uc.Chrome] = None
+        self.driver: Optional[webdriver.Chrome] = None
         self._total_pages: int = 0
     
     @staticmethod
     def _find_chrome_binary() -> str:
-        """
-        Locate the Chrome/Chromium executable.
-        Checks config override first, then auto-discovers on Linux
-        (needed for Streamlit Cloud / Docker environments).
-        Returns empty string if nothing found (uc will use its own default).
-        """
+        """Locate Chrome/Chromium binary. Auto-detects on Linux (Streamlit Cloud / Docker)."""
         if config.CHROME_USER_DATA_DIR:
-            # User explicitly configured a path — don't override
-            return ""
+            return ""  # user profile set — let the driver find it itself
         if not sys.platform.startswith("linux"):
             return ""
-        candidates = [
-            "chromium-browser",
-            "chromium",
-            "google-chrome",
-            "google-chrome-stable",
-        ]
-        for name in candidates:
+        for name in ("chromium-browser", "chromium", "google-chrome", "google-chrome-stable"):
             path = shutil.which(name)
             if path:
                 log_info(f"Auto-detected Chrome binary: {path}")
                 return path
         return ""
 
-    def start(self) -> "uc.Chrome":
-        """Initialize and return a configured Chrome WebDriver."""
-        log_info("Initializing Chrome browser (undetected)...")
-        
-        options = uc.ChromeOptions()
-        
+    @staticmethod
+    def _build_service() -> ChromeService:
+        """
+        Build a ChromeService.
+        - On Linux: use system chromedriver (installed via packages.txt on Streamlit Cloud).
+        - Elsewhere: use webdriver_manager to auto-download a matching driver.
+        """
+        if sys.platform.startswith("linux"):
+            driver_path = shutil.which("chromedriver")
+            if driver_path:
+                log_info(f"Using system chromedriver: {driver_path}")
+                return ChromeService(executable_path=driver_path)
+            log_warning("chromedriver not found in PATH on Linux, falling back to webdriver_manager")
+        # Windows / Mac / Linux fallback
+        from webdriver_manager.chrome import ChromeDriverManager
+        return ChromeService(ChromeDriverManager().install())
+
+    def start(self) -> webdriver.Chrome:
+        """Initialize and return a configured Chrome WebDriver with stealth patches."""
+        log_info("Initializing Chrome browser...")
+
+        options = ChromeOptions()
+
         if config.HEADLESS:
             options.add_argument("--headless=new")
-        
+
         options.add_argument(f"--window-size={config.BROWSER_WIDTH},{config.BROWSER_HEIGHT}")
         options.add_argument("--disable-gpu")
         options.add_argument("--no-sandbox")
         options.add_argument("--disable-dev-shm-usage")
         options.add_argument("--disable-extensions")
         options.add_argument("--disable-infobars")
-        # Required in shared/containerized Linux environments (Streamlit Cloud, Docker)
         options.add_argument("--disable-setuid-sandbox")
         options.add_argument("--remote-debugging-port=0")
-        
+        # Suppress automation flags detected by Google
+        options.add_argument("--disable-blink-features=AutomationControlled")
+        options.add_experimental_option("excludeSwitches", ["enable-automation"])
+        options.add_experimental_option("useAutomationExtension", False)
+
         if config.CHROME_USER_DATA_DIR:
             options.add_argument(f"--user-data-dir={config.CHROME_USER_DATA_DIR}")
             options.add_argument(f"--profile-directory={config.CHROME_PROFILE}")
             log_info(f"Using Chrome profile: {config.CHROME_PROFILE}")
-        
-        # Point to system Chromium on Linux if available
+
         chrome_bin = self._find_chrome_binary()
         if chrome_bin:
             options.binary_location = chrome_bin
-        
+
         try:
-            self.driver = uc.Chrome(options=options, use_subprocess=True)
-            
+            service = self._build_service()
+            self.driver = webdriver.Chrome(service=service, options=options)
+
+            # Apply selenium-stealth anti-bot patches (replaces undetected_chromedriver)
+            if _HAS_STEALTH:
+                _apply_stealth(
+                    self.driver,
+                    languages=["en-US", "en"],
+                    vendor="Google Inc.",
+                    platform="Win32",
+                    webgl_vendor="Intel Inc.",
+                    renderer="Intel Iris OpenGL Engine",
+                    fix_hairline=True,
+                )
+                log_info("selenium-stealth applied")
+            else:
+                log_warning("selenium-stealth not installed — bot detection may trigger")
+
             if config.DEVICE_SCALE_FACTOR > 1:
                 self.driver.execute_cdp_cmd("Emulation.setDeviceMetricsOverride", {
                     "width": config.BROWSER_WIDTH,
                     "height": config.BROWSER_HEIGHT,
                     "deviceScaleFactor": config.DEVICE_SCALE_FACTOR,
-                    "mobile": False
+                    "mobile": False,
                 })
-            
-            log_success("Undetected Chrome browser initialized successfully")
+
+            log_success("Chrome browser initialized successfully")
             return self.driver
-            
+
         except WebDriverException as e:
             log_error(f"Failed to start Chrome: {e}")
             raise RuntimeError(
