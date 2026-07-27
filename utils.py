@@ -77,6 +77,30 @@ def build_view_url(file_id: str) -> str:
     return f"https://drive.google.com/file/d/{file_id}/view"
 
 
+def is_presentation_url(url: str) -> bool:
+    """Return True if the URL points to a Google Slides presentation."""
+    return "docs.google.com/presentation" in url
+
+
+def is_docs_url(url: str) -> bool:
+    """Return True if the URL points to a Google Docs document."""
+    return "docs.google.com/document" in url
+
+
+def is_sheets_url(url: str) -> bool:
+    """Return True if the URL points to a Google Sheets spreadsheet."""
+    return "docs.google.com/spreadsheets" in url
+
+
+def build_export_url(file_id: str, doc_type: str = "presentation", fmt: str = "pdf") -> str:
+    """Build a direct export URL for Google Docs editors.
+    
+    doc_type: presentation | document | spreadsheets
+    fmt: pdf | pptx | docx | xlsx | ...
+    """
+    return f"https://docs.google.com/{doc_type}/d/{file_id}/export/{fmt}"
+
+
 def sanitize_filename(name: str) -> str:
     """Remove invalid characters from a filename."""
     # Remove characters that are invalid in Windows filenames

@@ -21,7 +21,8 @@ ROOT_DIR = os.path.dirname(os.path.abspath(__file__))
 if ROOT_DIR not in sys.path:
     sys.path.insert(0, ROOT_DIR)
 
-from utils import extract_file_id, is_folder_url, sanitize_filename
+import requests
+from utils import extract_file_id, is_folder_url, is_presentation_url, is_docs_url, is_sheets_url, build_export_url, sanitize_filename
 from browser_handler import BrowserHandler
 from pdf_builder import PDFBuilder
 import config
@@ -607,7 +608,6 @@ def _make_progress_cb(base: float, span: float):
 
 def _run_download(url: str):
     """Full GDrive download pipeline — background thread."""
-    browser = BrowserHandler()
     builder = PDFBuilder()
 
     tmp_dir = os.path.join(ROOT_DIR, ".tmp_dl")
@@ -619,86 +619,155 @@ def _run_download(url: str):
         state.status_msg = "Đang phân tích link..."
         state.progress = 0.05
 
-        is_folder = is_folder_url(url)
-        browser.start()
+        file_id = extract_file_id(url)
 
-        if is_folder:
-            state.status_msg = "Đang quét thư mục..."
-            state.progress = 0.10
-            files_data = browser.get_folder_file_ids(url)
-            if not files_data:
-                browser.close()
-                state.error = "Không tìm thấy file trong thư mục hoặc thư mục bị khoá."
+        # ── Detect Google Docs Editor type and use Export API directly ──────
+        # This bypasses Selenium entirely for public Slides/Docs/Sheets files.
+        doc_type = None
+        if is_presentation_url(url):
+            doc_type = "presentation"
+        elif is_docs_url(url):
+            doc_type = "document"
+        elif is_sheets_url(url):
+            doc_type = "spreadsheets"
+
+        if doc_type:
+            state.status_msg = f"Đang tải xuống qua Google Export API..."
+            state.progress = 0.30
+            export_url = build_export_url(file_id, doc_type, "pdf")
+
+            session = requests.Session()
+            session.headers.update({
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+            })
+
+            resp = session.get(export_url, allow_redirects=True, timeout=120, stream=True)
+            if resp.status_code == 403:
+                state.error = "Không thể tải xuống: file yêu cầu đăng nhập Google hoặc không được phép truy cập công khai."
                 state.phase = "error"
                 return
-            fid, title = files_data[0]
-            view_url = f"https://drive.google.com/file/d/{fid}/view"
-        else:
-            state.status_msg = "Đang lấy ID tài liệu..."
-            state.progress = 0.10
-            file_id = extract_file_id(url)
-            view_url = f"https://drive.google.com/file/d/{file_id}/view"
+            if resp.status_code != 200:
+                state.error = f"Google Export API trả về lỗi: HTTP {resp.status_code}. Hãy đảm bảo file đã được chia sẻ công khai."
+                state.phase = "error"
+                return
+
+            content_type = resp.headers.get("Content-Type", "")
+            if "text/html" in content_type and b"Sign in" in resp.content[:2000]:
+                state.error = "File yêu cầu đăng nhập Google. Hãy đảm bảo quyền xem công khai đã được bật."
+                state.phase = "error"
+                return
+
+            state.status_msg = "Đang nhận dữ liệu PDF..."
+            state.progress = 0.70
+            pdf_bytes = resp.content
+
+            # Get title from response headers or fallback
+            cd = resp.headers.get("Content-Disposition", "")
             title = None
+            if 'filename=' in cd:
+                import re
+                m = re.search(r'filename\*?=["\']?(?:UTF-\d[\'"]*)?([^;\n"\']+)', cd)
+                if m:
+                    title = m.group(1).strip().rstrip(".pdf")
+            if not title:
+                title = f"google_{doc_type}_{file_id}"
 
-        state.status_msg = "Đang mở tài liệu trong trình duyệt..."
-        state.progress = 0.20
-        if not browser.open_file(view_url):
-            browser.close()
-            state.error = "Không thể truy cập tài liệu. File có thể yêu cầu đăng nhập Google."
-            state.phase = "error"
-            return
-
-        if not title:
-            title = browser.get_file_title()
-
-        state.status_msg = "Đang tải toàn bộ trang..."
-        state.progress = 0.30
-        total_pages = browser.get_total_pages()
-        browser.scroll_through_all_pages(
-            total_pages,
-            progress_callback=_make_progress_cb(base=0.30, span=0.35),
-        )
-
-        state.status_msg = "Đang trích xuất hình ảnh chất lượng cao..."
-        state.progress = 0.65
-        images = browser.capture_page_images(
-            total_pages,
-            progress_callback=_make_progress_cb(base=0.65, span=0.25),
-        )
-        browser.close()
-
-        if not images:
-            state.error = "Không thể lấy được hình ảnh nào từ tài liệu."
-            state.phase = "error"
-            return
-
-        state.status_msg = "Đang đóng gói PDF..."
-        state.progress = 0.90
-        safe_title = sanitize_filename(title)
-        pdf_path = os.path.join(tmp_dir, f"{safe_title}.pdf")
-
-        if builder.build_pdf(images, pdf_path):
-            with open(pdf_path, "rb") as f:
-                state.pdf_bytes = f.read()
+            state.status_msg = "Đang hoàn tất..."
+            state.progress = 0.95
+            safe_title = sanitize_filename(title)
+            state.pdf_bytes = pdf_bytes
             state.pdf_filename = f"{safe_title}.pdf"
-            try:
-                os.remove(pdf_path)
-            except OSError:
-                pass
             state.progress = 1.0
             state.status_msg = "Hoàn tất!"
             state.phase = "done"
-        else:
-            state.error = "Lỗi trong quá trình tạo file PDF."
+            return
+
+        # ── Standard Drive file: use Selenium browser ────────────────────────
+        browser = BrowserHandler()
+        try:
+            is_folder = is_folder_url(url)
+            browser.start()
+
+            if is_folder:
+                state.status_msg = "Đang quét thư mục..."
+                state.progress = 0.10
+                files_data = browser.get_folder_file_ids(url)
+                if not files_data:
+                    browser.close()
+                    state.error = "Không tìm thấy file trong thư mục hoặc thư mục bị khoá."
+                    state.phase = "error"
+                    return
+                fid, title = files_data[0]
+                view_url = f"https://drive.google.com/file/d/{fid}/view"
+            else:
+                state.status_msg = "Đang lấy ID tài liệu..."
+                state.progress = 0.10
+                view_url = f"https://drive.google.com/file/d/{file_id}/view"
+                title = None
+
+            state.status_msg = "Đang mở tài liệu trong trình duyệt..."
+            state.progress = 0.20
+            if not browser.open_file(view_url):
+                browser.close()
+                state.error = "Không thể truy cập tài liệu. File có thể yêu cầu đăng nhập Google."
+                state.phase = "error"
+                return
+
+            if not title:
+                title = browser.get_file_title()
+
+            state.status_msg = "Đang tải toàn bộ trang..."
+            state.progress = 0.30
+            total_pages = browser.get_total_pages()
+            browser.scroll_through_all_pages(
+                total_pages,
+                progress_callback=_make_progress_cb(base=0.30, span=0.35),
+            )
+
+            state.status_msg = "Đang trích xuất hình ảnh chất lượng cao..."
+            state.progress = 0.65
+            images = browser.capture_page_images(
+                total_pages,
+                progress_callback=_make_progress_cb(base=0.65, span=0.25),
+            )
+            browser.close()
+
+            if not images:
+                state.error = "Không thể lấy được hình ảnh nào từ tài liệu."
+                state.phase = "error"
+                return
+
+            state.status_msg = "Đang đóng gói PDF..."
+            state.progress = 0.90
+            safe_title = sanitize_filename(title)
+            pdf_path = os.path.join(tmp_dir, f"{safe_title}.pdf")
+
+            if builder.build_pdf(images, pdf_path):
+                with open(pdf_path, "rb") as f:
+                    state.pdf_bytes = f.read()
+                state.pdf_filename = f"{safe_title}.pdf"
+                try:
+                    os.remove(pdf_path)
+                except OSError:
+                    pass
+                state.progress = 1.0
+                state.status_msg = "Hoàn tất!"
+                state.phase = "done"
+            else:
+                state.error = "Lỗi trong quá trình tạo file PDF."
+                state.phase = "error"
+
+        except Exception as exc:
+            state.error = str(exc)
             state.phase = "error"
+            try:
+                browser.close()
+            except Exception:
+                pass
 
     except Exception as exc:
         state.error = str(exc)
         state.phase = "error"
-        try:
-            browser.close()
-        except Exception:
-            pass
     finally:
         state.running = False
 
