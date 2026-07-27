@@ -1,6 +1,5 @@
 """
 GDrive Saver — Streamlit frontend.
-Replaces the old FastAPI + static HTML setup.
 """
 
 import os
@@ -27,9 +26,275 @@ import config
 # ─────────────────────────────────────────────────────────────────────────────
 st.set_page_config(
     page_title="GDrive Saver",
-    page_icon="📥",
+    page_icon=None,
     layout="centered",
+    initial_sidebar_state="collapsed",
 )
+
+# ─────────────────────────────────────────────────────────────────────────────
+#  Custom CSS
+# ─────────────────────────────────────────────────────────────────────────────
+st.markdown("""
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+
+/* ── Base ── */
+html, body, [class*="css"] {
+    font-family: 'Inter', sans-serif;
+}
+
+/* ── Background ── */
+.stApp {
+    background: #0d0f14;
+}
+
+/* ── Hide default streamlit chrome ── */
+#MainMenu, footer, header { visibility: hidden; }
+.block-container {
+    padding-top: 3rem;
+    padding-bottom: 3rem;
+    max-width: 680px;
+}
+
+/* ── Hero header ── */
+.gs-hero {
+    text-align: center;
+    margin-bottom: 2.5rem;
+}
+.gs-wordmark {
+    font-size: 2.25rem;
+    font-weight: 700;
+    letter-spacing: -0.04em;
+    color: #ffffff;
+    line-height: 1;
+}
+.gs-wordmark span {
+    color: #6c8fff;
+}
+.gs-tagline {
+    margin-top: 0.5rem;
+    font-size: 0.9rem;
+    font-weight: 400;
+    color: #6b7280;
+    letter-spacing: 0.01em;
+}
+
+/* ── Card ── */
+.gs-card {
+    background: #161a24;
+    border: 1px solid #1f2535;
+    border-radius: 16px;
+    padding: 2rem;
+    box-shadow: 0 4px 40px rgba(0,0,0,0.4);
+}
+
+/* ── Input label ── */
+.gs-label {
+    font-size: 0.78rem;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: #6b7280;
+    margin-bottom: 0.4rem;
+}
+
+/* ── Streamlit text_input override ── */
+.stTextInput > div > div > input {
+    background: #0d0f14 !important;
+    border: 1px solid #1f2535 !important;
+    border-radius: 10px !important;
+    color: #e2e8f0 !important;
+    font-size: 0.95rem !important;
+    padding: 0.75rem 1rem !important;
+    transition: border-color 0.2s;
+}
+.stTextInput > div > div > input:focus {
+    border-color: #6c8fff !important;
+    box-shadow: 0 0 0 3px rgba(108,143,255,0.12) !important;
+    outline: none !important;
+}
+.stTextInput > div > div > input::placeholder {
+    color: #374151 !important;
+}
+.stTextInput label { display: none !important; }
+
+/* ── Primary button ── */
+.stButton > button[kind="primary"],
+.stButton > button[data-testid="baseButton-primary"] {
+    background: linear-gradient(135deg, #6c8fff 0%, #4f46e5 100%) !important;
+    border: none !important;
+    border-radius: 10px !important;
+    color: #ffffff !important;
+    font-size: 0.9rem !important;
+    font-weight: 600 !important;
+    letter-spacing: 0.02em !important;
+    padding: 0.75rem 1.5rem !important;
+    transition: opacity 0.2s, transform 0.15s !important;
+    width: 100% !important;
+}
+.stButton > button[kind="primary"]:hover {
+    opacity: 0.88 !important;
+    transform: translateY(-1px) !important;
+}
+.stButton > button[kind="primary"]:active {
+    transform: translateY(0) !important;
+}
+.stButton > button[kind="primary"]:disabled {
+    opacity: 0.35 !important;
+    cursor: not-allowed !important;
+    transform: none !important;
+}
+
+/* ── Secondary / reset button ── */
+.stButton > button[kind="secondary"],
+.stButton > button[data-testid="baseButton-secondary"] {
+    background: transparent !important;
+    border: 1px solid #1f2535 !important;
+    border-radius: 10px !important;
+    color: #9ca3af !important;
+    font-size: 0.88rem !important;
+    font-weight: 500 !important;
+    width: 100% !important;
+    transition: border-color 0.2s, color 0.2s !important;
+}
+.stButton > button[kind="secondary"]:hover {
+    border-color: #374151 !important;
+    color: #e2e8f0 !important;
+}
+
+/* ── Download button ── */
+.stDownloadButton > button {
+    background: #161a24 !important;
+    border: 1px solid #6c8fff !important;
+    border-radius: 10px !important;
+    color: #6c8fff !important;
+    font-size: 0.9rem !important;
+    font-weight: 600 !important;
+    letter-spacing: 0.02em !important;
+    padding: 0.75rem 1.5rem !important;
+    width: 100% !important;
+    transition: background 0.2s, color 0.2s !important;
+}
+.stDownloadButton > button:hover {
+    background: #6c8fff !important;
+    color: #ffffff !important;
+}
+
+/* ── Progress bar ── */
+.stProgress > div > div {
+    background: #1f2535 !important;
+    border-radius: 99px !important;
+    height: 6px !important;
+}
+.stProgress > div > div > div {
+    background: linear-gradient(90deg, #6c8fff, #4f46e5) !important;
+    border-radius: 99px !important;
+}
+
+/* ── Status area ── */
+.gs-status-box {
+    background: #0d0f14;
+    border: 1px solid #1f2535;
+    border-radius: 10px;
+    padding: 0.9rem 1.1rem;
+    margin: 0.75rem 0;
+}
+.gs-status-text {
+    font-size: 0.85rem;
+    color: #9ca3af;
+    font-weight: 400;
+}
+.gs-status-hint {
+    font-size: 0.78rem;
+    color: #374151;
+    margin-top: 0.3rem;
+}
+
+/* ── Success state ── */
+.gs-result {
+    background: #0d1a12;
+    border: 1px solid #166534;
+    border-radius: 10px;
+    padding: 0.9rem 1.1rem;
+    margin: 0.75rem 0;
+}
+.gs-result-title {
+    font-size: 0.78rem;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: #22c55e;
+    margin-bottom: 0.2rem;
+}
+.gs-result-filename {
+    font-size: 0.9rem;
+    color: #e2e8f0;
+    font-weight: 500;
+    word-break: break-all;
+}
+
+/* ── Error state ── */
+.gs-error {
+    background: #1a0d0d;
+    border: 1px solid #7f1d1d;
+    border-radius: 10px;
+    padding: 0.9rem 1.1rem;
+    margin: 0.75rem 0;
+}
+.gs-error-label {
+    font-size: 0.78rem;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: #ef4444;
+    margin-bottom: 0.2rem;
+}
+.gs-error-msg {
+    font-size: 0.88rem;
+    color: #fca5a5;
+    font-weight: 400;
+}
+
+/* ── Divider ── */
+.gs-divider {
+    height: 1px;
+    background: #1f2535;
+    margin: 1.5rem 0;
+}
+
+/* ── Guide in sidebar ── */
+section[data-testid="stSidebar"] {
+    background: #0d0f14 !important;
+    border-right: 1px solid #1f2535 !important;
+}
+section[data-testid="stSidebar"] h2,
+section[data-testid="stSidebar"] h3 {
+    color: #e2e8f0;
+    font-size: 0.9rem;
+    font-weight: 600;
+}
+section[data-testid="stSidebar"] p,
+section[data-testid="stSidebar"] li {
+    color: #6b7280;
+    font-size: 0.83rem;
+    line-height: 1.7;
+}
+section[data-testid="stSidebar"] strong {
+    color: #9ca3af;
+}
+section[data-testid="stSidebar"] code {
+    background: #161a24;
+    border: 1px solid #1f2535;
+    border-radius: 4px;
+    padding: 1px 5px;
+    font-size: 0.8rem;
+    color: #6c8fff;
+}
+
+/* ── Streamlit info/warning/success/error overrides ── */
+.stAlert { display: none !important; }
+</style>
+""", unsafe_allow_html=True)
 
 # ─────────────────────────────────────────────────────────────────────────────
 #  Session state schema
@@ -37,10 +302,8 @@ st.set_page_config(
 @dataclass
 class AppState:
     running: bool = False
-    # "idle" | "running" | "done" | "error"
-    # Used to avoid blank-screen flash between running→done transition.
-    phase: str = "idle"
-    progress: float = 0.0          # 0.0 – 1.0
+    phase: str = "idle"       # "idle" | "running" | "done" | "error"
+    progress: float = 0.0
     status_msg: str = ""
     error: Optional[str] = None
     pdf_bytes: Optional[bytes] = None
@@ -59,10 +322,6 @@ state: AppState = st.session_state.app
 #  Background worker
 # ─────────────────────────────────────────────────────────────────────────────
 def _make_progress_cb(base: float, span: float):
-    """
-    Returns a callback that maps [0, total] → [base, base+span]
-    so each phase occupies its own slice of the full 0–1 bar.
-    """
     def _cb(current: int, total: int, msg: str):
         state.status_msg = msg
         fraction = current / max(total, 1)
@@ -81,7 +340,6 @@ def _run_download(url: str):
     os.makedirs(config.TEMP_DIR, exist_ok=True)
 
     try:
-        # ── 1. Resolve URL ────────────────────────────────────────────────
         state.status_msg = "Đang phân tích link..."
         state.progress = 0.05
 
@@ -97,7 +355,6 @@ def _run_download(url: str):
                 state.error = "Không tìm thấy file trong thư mục hoặc thư mục bị khoá."
                 state.phase = "error"
                 return
-            # ponytail: chỉ xử lý file đầu tiên trong thư mục cho demo web.
             fid, title = files_data[0]
             view_url = f"https://drive.google.com/file/d/{fid}/view"
         else:
@@ -107,8 +364,7 @@ def _run_download(url: str):
             view_url = f"https://drive.google.com/file/d/{file_id}/view"
             title = None
 
-        # ── 2. Open file ──────────────────────────────────────────────────
-        state.status_msg = "Đang mở tài liệu trong Chrome..."
+        state.status_msg = "Đang mở tài liệu trong trình duyệt..."
         state.progress = 0.20
         if not browser.open_file(view_url):
             browser.close()
@@ -122,7 +378,6 @@ def _run_download(url: str):
         if not title:
             title = browser.get_file_title()
 
-        # ── 3. Scroll all pages (30% → 65%) ──────────────────────────────
         state.status_msg = "Đang tải toàn bộ trang..."
         state.progress = 0.30
         total_pages = browser.get_total_pages()
@@ -131,7 +386,6 @@ def _run_download(url: str):
             progress_callback=_make_progress_cb(base=0.30, span=0.35),
         )
 
-        # ── 4. Capture images (65% → 90%) ─────────────────────────────────
         state.status_msg = "Đang trích xuất hình ảnh chất lượng cao..."
         state.progress = 0.65
         images = browser.capture_page_images(
@@ -145,7 +399,6 @@ def _run_download(url: str):
             state.phase = "error"
             return
 
-        # ── 5. Build PDF (90% → 100%) ─────────────────────────────────────
         state.status_msg = "Đang đóng gói PDF..."
         state.progress = 0.90
         safe_title = sanitize_filename(title)
@@ -180,26 +433,106 @@ def _run_download(url: str):
 # ─────────────────────────────────────────────────────────────────────────────
 #  UI
 # ─────────────────────────────────────────────────────────────────────────────
-st.title("GDrive Saver")
-st.caption("Tải file Google Drive dạng View-only về dạng PDF chất lượng cao.")
 
-st.divider()
+# Hero
+st.markdown("""
+<div class="gs-hero">
+    <div class="gs-wordmark">GDrive<span>Saver</span></div>
+    <div class="gs-tagline">Chuyển tài liệu View-only thành PDF chất lượng cao</div>
+</div>
+""", unsafe_allow_html=True)
 
+# Card
+st.markdown('<div class="gs-card">', unsafe_allow_html=True)
+
+st.markdown('<div class="gs-label">Link Google Drive</div>', unsafe_allow_html=True)
 url_input = st.text_input(
-    "Link Google Drive",
-    placeholder="https://drive.google.com/file/d/...",
+    label="url",
+    placeholder="https://drive.google.com/file/d/...  hoặc  /drive/folders/...",
     disabled=state.running,
+    label_visibility="collapsed",
 )
 
+st.markdown("<div style='height:0.75rem'></div>", unsafe_allow_html=True)
+
 start_btn = st.button(
-    "Tải xuống",
+    "Bắt đầu tải xuống",
     type="primary",
     disabled=state.running or not url_input.strip(),
     use_container_width=True,
+    key="start_btn",
 )
 
+# ── Progress ──────────────────────────────────────────────────────────────────
+if state.phase == "running":
+    st.markdown('<div class="gs-divider"></div>', unsafe_allow_html=True)
+    st.progress(state.progress)
+    st.markdown(f"""
+<div class="gs-status-box">
+    <div class="gs-status-text">{state.status_msg or "Đang xử lý..."}</div>
+    <div class="gs-status-hint">Trình duyệt đang chạy ngầm — vui lòng không đóng trang</div>
+</div>
+""", unsafe_allow_html=True)
+
+# ── Error ──────────────────────────────────────────────────────────────────────
+if state.phase == "error" and state.error:
+    st.markdown('<div class="gs-divider"></div>', unsafe_allow_html=True)
+    st.markdown(f"""
+<div class="gs-error">
+    <div class="gs-error-label">Đã xảy ra lỗi</div>
+    <div class="gs-error-msg">{state.error}</div>
+</div>
+""", unsafe_allow_html=True)
+    if st.button("Thử lại", key="retry_btn"):
+        st.session_state.app = AppState()
+        st.rerun()
+
+# ── Done ───────────────────────────────────────────────────────────────────────
+if state.phase == "done" and state.pdf_bytes:
+    st.markdown('<div class="gs-divider"></div>', unsafe_allow_html=True)
+    st.progress(1.0)
+    st.markdown(f"""
+<div class="gs-result">
+    <div class="gs-result-title">Sẵn sàng tải xuống</div>
+    <div class="gs-result-filename">{state.pdf_filename}</div>
+</div>
+""", unsafe_allow_html=True)
+    st.download_button(
+        label="Tải file PDF",
+        data=state.pdf_bytes,
+        file_name=state.pdf_filename,
+        mime="application/pdf",
+        use_container_width=True,
+        key="download_btn",
+    )
+    st.markdown("<div style='height:0.5rem'></div>", unsafe_allow_html=True)
+    if st.button("Tải file mới", key="reset_btn"):
+        st.session_state.app = AppState()
+        st.rerun()
+
+st.markdown('</div>', unsafe_allow_html=True)  # end .gs-card
+
+# ── Sidebar ────────────────────────────────────────────────────────────────────
+with st.sidebar:
+    st.markdown("### Hướng dẫn sử dụng")
+    st.markdown("""
+1. Dán link Google Drive dạng **View-only** vào ô nhập.
+2. Nhấn **Bắt đầu tải xuống**.
+3. Đợi trình duyệt ảo cuộn qua toàn bộ tài liệu *(khoảng 1 – 3 phút tuỳ độ dài file)*.
+4. Nhấn **Tải file PDF** khi hoàn tất.
+
+---
+
+**Hỗ trợ:**
+- Link file đơn lẻ (`/file/d/...`)
+- Link thư mục (`/drive/folders/...`) — lấy file đầu tiên
+
+**Giới hạn:**
+- File yêu cầu đăng nhập Google sẽ không tải được.
+""")
+
+# ── Start download ─────────────────────────────────────────────────────────────
 if start_btn and url_input.strip():
-    # Reset state for a fresh run
     state.running = True
     state.phase = "running"
     state.progress = 0.0
@@ -212,49 +545,7 @@ if start_btn and url_input.strip():
     thread.start()
     st.rerun()
 
-# ── Progress display ──────────────────────────────────────────────────────────
+# ── Polling loop — keep UI live while worker thread runs ───────────────────────
 if state.phase == "running":
-    st.progress(state.progress, text=state.status_msg)
-    st.info("Chrome đang chạy ngầm. Vui lòng không đóng trang này.")
-    # Poll every 2 s — avoids busy-loop CPU spike while keeping UI responsive
     time.sleep(2)
     st.rerun()
-
-# ── Result ────────────────────────────────────────────────────────────────────
-if state.phase == "error" and state.error:
-    st.error(f"Lỗi: {state.error}")
-    if st.button("Thử lại"):
-        st.session_state.app = AppState()
-        st.rerun()
-
-if state.phase == "done" and state.pdf_bytes:
-    st.progress(1.0, text="Hoàn tất!")
-    st.success(f"File: **{state.pdf_filename}**")
-    st.download_button(
-        label="Tải file PDF",
-        data=state.pdf_bytes,
-        file_name=state.pdf_filename,
-        mime="application/pdf",
-        use_container_width=True,
-    )
-    if st.button("Tải file mới"):
-        st.session_state.app = AppState()
-        st.rerun()
-
-# ── Sidebar info ──────────────────────────────────────────────────────────────
-with st.sidebar:
-    st.header("Hướng dẫn")
-    st.markdown("""
-1. Dán link Google Drive dạng **View-only** vào ô trên.
-2. Bấm **Tải xuống**.
-3. Đợi Chrome ảo cuộn qua toàn bộ tài liệu (có thể mất 1–3 phút tuỳ độ dài file).
-4. Bấm **Tải file PDF** khi hoàn tất.
-
----
-
-**Lưu ý:**
-- Hỗ trợ link file đơn lẻ và link thư mục (sẽ lấy file đầu tiên).
-- File yêu cầu đăng nhập Google sẽ không tải được (cần cấu hình `CHROME_USER_DATA_DIR` trong `config.py`).
-""")
-    st.divider()
-    st.caption("Chạy bằng: `streamlit run app.py`")
