@@ -9,6 +9,7 @@ import shutil
 import time
 import base64
 import json
+import re
 from typing import Optional, List, Tuple
 
 from selenium import webdriver
@@ -81,7 +82,10 @@ class BrowserHandler:
             options.add_argument("--headless=new")
 
         options.add_argument(f"--window-size={config.BROWSER_WIDTH},{config.BROWSER_HEIGHT}")
-        options.add_argument("--disable-gpu")
+        # Use software GPU (SwiftShader) instead of disabling GPU entirely.
+        # --disable-gpu kills WebGL which Google Drive viewer requires to render pages.
+        options.add_argument("--use-gl=swiftshader")
+        options.add_argument("--enable-webgl")
         options.add_argument("--no-sandbox")
         options.add_argument("--disable-dev-shm-usage")
         options.add_argument("--disable-extensions")
@@ -204,78 +208,76 @@ class BrowserHandler:
         """Extract file IDs and their names from a Google Drive folder."""
         if not self.driver:
             raise RuntimeError("Browser not started. Call start() first.")
-            
+
+        # Extract folder's own ID so we can filter it out of results.
+        # Bug: the broad div[data-id] selector often picks up the folder container itself.
+        own_id_match = re.search(r'/folders/([a-zA-Z0-9_-]+)', folder_url)
+        own_folder_id = own_id_match.group(1) if own_id_match else ""
+
         log_info("Opening folder URL...")
         self.driver.get(folder_url)
-        time.sleep(config.PAGE_LOAD_WAIT + 2) # Give it extra time
-        
+
         if self._check_for_errors():
             return []
-            
-        # Try to scroll the virtual list to load all items
-        log_info("Scanning folder for files...")
-        self.driver.execute_script("""
-            let scrollers = document.querySelectorAll('div[role="main"], div[role="grid"], c-wiz[role="main"]');
-            for (let s of scrollers) {
-                if (s.scrollHeight > s.clientHeight) {
-                    s.scrollTop = s.scrollHeight;
-                }
-            }
-        """)
-        time.sleep(2)
-        
-        # Extract files: items with data-id
-        results = self.driver.execute_script("""
-            // Only select items that are actual rows/grid cells to avoid picking up the folder header
-            let items = document.querySelectorAll('div[data-id][role="row"], div[data-id][role="gridcell"], div[data-id][role="option"], c-wiz[data-id]');
-            if (items.length === 0) {
-                // Fallback if roles are missing
-                items = document.querySelectorAll('div[data-id]');
-            }
-            
-            let files = [];
-            let seen = new Set();
-            for (let item of items) {
-                let id = item.getAttribute('data-id');
-                // Skip invalid or folder IDs
-                if (!id || id.length < 15 || seen.has(id)) continue;
-                
-                // Exclude obvious folders by checking text or aria-labels
-                let text = (item.textContent || '').toLowerCase();
-                let aria = (item.getAttribute('aria-label') || '').toLowerCase();
-                
-                // If it's a folder or the header, skip
-                if (aria.includes('folder ') || aria.includes('thư mục ') || text.includes('thư mục') || aria.includes('owner') || item.tagName === 'C-WIZ') {
-                    // Check if it's really just the folder container
-                    if (!item.querySelector('[aria-label*="."]')) {
-                       continue;
+
+        # Retry loop: headless Chromium may render the folder file list slowly.
+        results = []
+        for attempt, wait_sec in enumerate((6, 10, 15), start=1):
+            log_info(f"Scanning folder for files (attempt {attempt})...")
+            time.sleep(wait_sec)
+
+            # Scroll to trigger lazy-loaded items
+            self.driver.execute_script("""
+                ['div[role="main"]','div[role="grid"]','c-wiz[role="main"]'].forEach(sel => {
+                    document.querySelectorAll(sel).forEach(el => {
+                        if (el.scrollHeight > el.clientHeight) el.scrollTop = el.scrollHeight;
+                    });
+                });
+            """)
+            time.sleep(1)
+
+            raw = self.driver.execute_script("""
+                // Collect all elements with a data-id or data-entry-id attribute
+                let candidates = [
+                    ...document.querySelectorAll('[data-id]'),
+                    ...document.querySelectorAll('[data-entry-id]'),
+                ];
+                let files = [];
+                let seen = new Set();
+                for (let el of candidates) {
+                    let id = el.getAttribute('data-id') || el.getAttribute('data-entry-id') || '';
+                    if (!id || id.length < 15 || seen.has(id)) continue;
+                    // Skip obvious UI shell elements (no aria-label child means no file name)
+                    let aria = (el.getAttribute('aria-label') || '').toLowerCase();
+                    if (aria.includes('search') || aria.includes('navigation') ||
+                        aria.includes('toolbar') || aria.includes('banner')) continue;
+                    // Try to get a human-readable title
+                    let title = '';
+                    let titleEl = el.querySelector('[aria-label]') || el.querySelector('[data-tooltip]');
+                    if (titleEl) {
+                        title = titleEl.getAttribute('aria-label') || titleEl.getAttribute('data-tooltip') || '';
+                        // GDrive sometimes prefixes: "Image, filename.png" — strip the type prefix
+                        if (title.includes(', ')) title = title.split(', ').slice(1).join(', ');
                     }
+                    if (!title) title = (el.innerText || '').split('\\n')[0].trim();
+                    if (!title) continue;
+                    files.push([id, title]);
+                    seen.add(id);
                 }
-                
-                // Try to get title
-                let title = "";
-                let titleEl = item.querySelector('[aria-label]');
-                if (titleEl) {
-                    title = titleEl.getAttribute('aria-label');
-                    // Clean up title (Google Drive adds things like "Image, filename.png")
-                    if (title.includes(', ')) {
-                        title = title.split(', ').slice(1).join(', ');
-                    }
-                } else {
-                    title = item.innerText.split('\\n')[0];
-                }
-                
-                // If the title still looks like a folder name and doesn't have an extension, we might want to skip it, 
-                // but we will keep it for now as some files don't have extensions.
-                if (title) {
-                   files.push([id, title || 'untitled']);
-                   seen.add(id);
-                }
-            }
-            return files;
-        """)
-        
-        return results or []
+                return files;
+            """)
+
+            # Filter out the folder's own ID and empty results
+            results = [
+                (fid, title)
+                for fid, title in (raw or [])
+                if fid and fid != own_folder_id and len(fid) >= 15
+            ]
+            log_info(f"Found {len(results)} candidate file(s) after filtering")
+            if results:
+                break
+
+        return results
     
     def get_file_title(self) -> str:
         """Extract the file title from the Google Drive viewer page."""
