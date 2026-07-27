@@ -101,39 +101,40 @@ html, body, [class*="css"] {
 .stTabs [data-baseweb="tab-list"] {
     background: #0f172a !important;
     border-radius: 14px !important;
-    padding: 6px !important;
-    gap: 8px !important;
-    border: 2px solid #334155 !important;
+    padding: 8px !important;
+    gap: 10px !important;
+    border: 2px solid #475569 !important;
     margin-bottom: 1.8rem !important;
     display: flex !important;
     width: 100% !important;
 }
 .stTabs [data-baseweb="tab"] {
-    background: #1e293b !important;
-    border: 1px solid #475569 !important;
+    background: #334155 !important; /* Lighter solid background for unselected tab */
+    border: 1px solid #64748b !important; /* Bright distinct border */
     border-radius: 10px !important;
-    padding: 0.75rem 1.25rem !important;
+    padding: 0.8rem 1.3rem !important;
     flex: 1 !important;
     justify-content: center !important;
     transition: all 0.2s ease !important;
     cursor: pointer !important;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2) !important;
 }
 .stTabs [data-baseweb="tab"] *,
 .stTabs [data-baseweb="tab"] p,
 .stTabs [data-baseweb="tab"] span,
 .stTabs [data-baseweb="tab"] div {
-    color: #e2e8f0 !important; /* Bright White-Gray text for unselected tab */
+    color: #ffffff !important; /* Pure 100% White text so it never blends in */
     font-size: 0.95rem !important;
     font-weight: 700 !important;
 }
 .stTabs [data-baseweb="tab"]:hover {
-    background: #334155 !important;
-    border-color: #64748b !important;
+    background: #475569 !important;
+    border-color: #94a3b8 !important;
 }
 .stTabs [aria-selected="true"] {
     background: #2563eb !important; /* Bold Solid Blue for selected tab */
-    border: 2px solid #60a5fa !important;
-    box-shadow: 0 4px 16px rgba(37, 99, 235, 0.4) !important;
+    border: 2px solid #93c5fd !important;
+    box-shadow: 0 4px 16px rgba(37, 99, 235, 0.45) !important;
 }
 .stTabs [aria-selected="true"] *,
 .stTabs [aria-selected="true"] p,
