@@ -489,59 +489,85 @@ section[data-testid="stSidebar"] code {
     border-radius: 4px;
     padding: 2px 6px;
     font-size: 0.82rem;
-/* ── Top-Right Popover Help Button Styling ── */
+/* ── Top-Right Popover Help Button & Modal Styling ── */
 div[data-testid="stPopover"] {
     display: flex;
     justify-content: flex-end;
 }
-div[data-testid="stPopover"] > button {
+div[data-testid="stPopover"] > button,
+button[data-testid="stBaseButton-popover"] {
+    background: #1e293b !important;
+    border: 2px solid #3b82f6 !important;
     border-radius: 50% !important;
     width: 44px !important;
     height: 44px !important;
     min-width: 44px !important;
+    max-width: 44px !important;
     padding: 0 !important;
-    font-size: 1.25rem !important;
-    font-weight: 800 !important;
-    background: #1e293b !important;
-    border: 2px solid #3b82f6 !important;
     color: #60a5fa !important;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3) !important;
+    font-size: 1.2rem !important;
+    font-weight: 800 !important;
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.4) !important;
     transition: all 0.2s ease !important;
 }
-div[data-testid="stPopover"] > button:hover {
+div[data-testid="stPopover"] > button:hover,
+button[data-testid="stBaseButton-popover"]:hover {
     background: #2563eb !important;
     color: #ffffff !important;
     border-color: #93c5fd !important;
-    transform: scale(1.08) !important;
 }
-div[data-testid="stPopoverBody"] {
-    background: #1e293b !important;
-    border: 1px solid #475569 !important;
+
+/* Modal Body Container & All Inner Elements — Force Solid Dark Background */
+[data-baseweb="popover"],
+[data-baseweb="popover"] > div,
+div[data-testid="stPopoverBody"],
+div[data-testid="stPopoverBody"] > div,
+div[data-testid="stPopoverContent"] {
+    background-color: #0f172a !important;
+    background: #0f172a !important;
+    border: 1px solid #334155 !important;
     border-radius: 16px !important;
     color: #f8fafc !important;
-    padding: 1.4rem !important;
-    max-width: 440px !important;
-    box-shadow: 0 12px 36px rgba(0, 0, 0, 0.5) !important;
+}
+div[data-testid="stPopoverBody"] {
+    padding: 1.5rem !important;
+    max-width: 480px !important;
+    box-shadow: 0 16px 48px rgba(0, 0, 0, 0.7) !important;
+}
+div[data-testid="stPopoverBody"] * {
+    background-color: transparent !important;
 }
 div[data-testid="stPopoverBody"] h3 {
-    color: #ffffff !important;
-    font-size: 1.05rem !important;
-    font-weight: 700 !important;
-    margin-bottom: 0.75rem !important;
+    color: #38bdf8 !important;
+    font-size: 1.1rem !important;
+    font-weight: 800 !important;
+    margin-bottom: 0.8rem !important;
+    border-bottom: 1px solid #334155 !important;
+    padding-bottom: 0.5rem !important;
 }
 div[data-testid="stPopoverBody"] h4 {
-    color: #60a5fa !important;
-    font-size: 0.88rem !important;
+    color: #818cf8 !important;
+    font-size: 0.9rem !important;
     font-weight: 700 !important;
-    margin-top: 0.8rem !important;
-    margin-bottom: 0.3rem !important;
+    margin-top: 1rem !important;
+    margin-bottom: 0.35rem !important;
 }
 div[data-testid="stPopoverBody"] p,
-div[data-testid="stPopoverBody"] li {
-    color: #cbd5e1 !important;
-    font-size: 0.83rem !important;
-    line-height: 1.6 !important;
+div[data-testid="stPopoverBody"] li,
+div[data-testid="stPopoverBody"] span,
+div[data-testid="stPopoverBody"] strong {
+    color: #f1f5f9 !important;
+    font-size: 0.85rem !important;
+    line-height: 1.65 !important;
 }
+div[data-testid="stPopoverBody"] code {
+    background: #1e293b !important;
+    border: 1px solid #334155 !important;
+    color: #38bdf8 !important;
+    padding: 2px 6px !important;
+    border-radius: 4px !important;
+}
+
 
 .stAlert { display: none !important; }
 </style>
