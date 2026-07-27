@@ -515,12 +515,13 @@ class BrowserHandler:
         
         # Check if it's a presentation viewer (only shows current slide)
         is_presentation = self.driver.execute_script(
-            "return !!document.querySelector('.punch-viewer-content, .punch-filmstrip-thumbnail, [role=\"option\"]');"
+            "return !!document.querySelector('.punch-viewer-content, .punch-filmstrip-thumbnail');"
         )
         if is_presentation:
             log_info("Detected Google Presentation format. Redirecting to /preview for faster extraction...")
             import re as _re
-            m = _re.search(r'/d/([a-zA-Z0-9_-]+)', self.driver.current_url)
+            original_url = self.driver.current_url
+            m = _re.search(r'/d/([a-zA-Z0-9_-]+)', original_url)
             if m:
                 file_id = m.group(1)
                 self.driver.get(f"https://docs.google.com/presentation/d/{file_id}/preview")
@@ -528,6 +529,10 @@ class BrowserHandler:
                 pres_images = self.capture_presentation_preview(total_pages, progress_callback)
                 if pres_images:
                     return pres_images
+                # Revert if it was a false positive or failed
+                log_warning("Preview extraction failed, navigating back to original URL...")
+                self.driver.get(original_url)
+                self._wait_for_content(timeout=30)
             else:
                 log_warning("Could not extract file_id. Using legacy slide extraction...")
                 pres_images = self._extract_presentation_slides(total_pages, progress_callback)
