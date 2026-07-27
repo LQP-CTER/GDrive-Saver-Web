@@ -1,6 +1,4 @@
-fastapi
-uvicorn
-pydantic
+streamlit
 selenium
 undetected-chromedriver
 img2pdf
