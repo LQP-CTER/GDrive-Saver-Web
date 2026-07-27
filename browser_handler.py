@@ -553,6 +553,92 @@ class BrowserHandler:
         log_error("Could not extract any page images")
         return []
     
+    def capture_presentation_preview(self, total_pages: int = 0, progress_callback=None) -> List[bytes]:
+        """
+        Capture a Google Docs /preview page slide-by-slide.
+        Works with the public /preview endpoint (no login required for view-only files).
+        Navigates with RIGHT arrow key and screenshots the clean viewer area.
+        """
+        images = []
+        try:
+            body = self.driver.find_element(By.TAG_NAME, "body")
+
+            # Click into the viewer so it accepts keyboard events
+            try:
+                viewer = self.driver.find_element(
+                    By.CSS_SELECTOR,
+                    ".punch-viewer-content, .docs-viewer-content, iframe, .goog-gesture-recognizer"
+                )
+                viewer.click()
+            except Exception:
+                body.click()
+            time.sleep(1)
+
+            # Press HOME to ensure we're on slide 1
+            body.send_keys(Keys.HOME)
+            time.sleep(1.5)
+
+            # Detect total slides from the DOM if not provided
+            if not total_pages:
+                total_pages = self.driver.execute_script("""
+                    // Try slide counter text e.g. "1 / 21"
+                    let counter = document.querySelector('.punch-filmstrip-slide-number, .presenterSlideNumber, .ndfHFb-c4YZDc-EglORb');
+                    if (counter) {
+                        let m = counter.textContent.match(/(\\d+)\\s*\\/\\s*(\\d+)/);
+                        if (m) return parseInt(m[2]);
+                    }
+                    // Fallback: filmstrip thumbnails
+                    return document.querySelectorAll('.punch-filmstrip-thumbnail, [role="option"]').length || 1;
+                """) or 1
+
+            log_info(f"Capturing {total_pages} slide(s) via /preview screenshots")
+
+            for i in range(total_pages):
+                if progress_callback:
+                    progress_callback(i + 1, total_pages, f"Chụp slide {i + 1}/{total_pages}")
+
+                # Hide UI chrome for a clean screenshot
+                self.driver.execute_script("""
+                    let selectors = [
+                        '.punch-viewer-navbar', '.ndfHFb-c4YZDc-Wrber-LgbsSe-haAclf',
+                        '.punch-filmstrip-container', '.ndfHFb-c4YZDc-zsEIvc-jfdpUb-b0t70b',
+                        '.docs-material-gm-header', '.punch-viewer-presenter-control-bar',
+                        '.left-sidebar-container', 'header', '.punch-viewer-controls'
+                    ];
+                    for (let s of selectors) {
+                        document.querySelectorAll(s).forEach(e => e.style.setProperty('display','none','important'));
+                    }
+                    window.dispatchEvent(new Event('resize'));
+                """)
+                time.sleep(1.2)
+
+                screenshot = self.driver.get_screenshot_as_png()
+                if screenshot:
+                    images.append(screenshot)
+
+                # Restore UI before advancing (so next slide loads correctly)
+                self.driver.execute_script("""
+                    let selectors = [
+                        '.punch-viewer-navbar', '.ndfHFb-c4YZDc-Wrber-LgbsSe-haAclf',
+                        '.punch-filmstrip-container', '.ndfHFb-c4YZDc-zsEIvc-jfdpUb-b0t70b',
+                        '.docs-material-gm-header', '.punch-viewer-presenter-control-bar',
+                        '.left-sidebar-container', 'header', '.punch-viewer-controls'
+                    ];
+                    for (let s of selectors) {
+                        document.querySelectorAll(s).forEach(e => e.style.removeProperty('display'));
+                    }
+                """)
+
+                if i < total_pages - 1:
+                    body.send_keys(Keys.ARROW_RIGHT)
+                    time.sleep(config.SCROLL_WAIT * 2)
+
+        except Exception as e:
+            log_error(f"Preview capture failed: {e}")
+
+        log_info(f"Captured {len(images)} slide screenshot(s)")
+        return images
+
     def _extract_presentation_slides(self, total_pages: int, progress_callback=None) -> List[bytes]:
         """Extract Google Presentation slides by simulating Next Slide keystrokes/clicks."""
         images = []

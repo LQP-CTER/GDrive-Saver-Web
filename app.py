@@ -632,54 +632,64 @@ def _run_download(url: str):
             doc_type = "spreadsheets"
 
         if doc_type:
-            state.status_msg = f"Đang tải xuống qua Google Export API..."
-            state.progress = 0.30
-            export_url = build_export_url(file_id, doc_type, "pdf")
+            preview_url = f"https://docs.google.com/{doc_type}/d/{file_id}/preview"
+            browser = BrowserHandler()
+            try:
+                browser.start()
+                state.status_msg = "Đang mở tài liệu..."
+                state.progress = 0.20
+                if not browser.open_file(preview_url):
+                    browser.close()
+                    state.error = "Không thể truy cập tài liệu. File có thể yêu cầu đăng nhập Google."
+                    state.phase = "error"
+                    return
 
-            session = requests.Session()
-            session.headers.update({
-                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
-            })
+                title = browser.get_file_title() or f"google_{doc_type}_{file_id}"
 
-            resp = session.get(export_url, allow_redirects=True, timeout=120, stream=True)
-            if resp.status_code == 403:
-                state.error = "Không thể tải xuống: file yêu cầu đăng nhập Google hoặc không được phép truy cập công khai."
+                state.status_msg = "Đang đếm số trang/slide..."
+                state.progress = 0.35
+                total_pages = browser.get_total_pages()
+
+                state.status_msg = "Đang chụp từng trang/slide..."
+                state.progress = 0.45
+                images = browser.capture_presentation_preview(
+                    total_pages,
+                    progress_callback=_make_progress_cb(base=0.45, span=0.42),
+                )
+                browser.close()
+
+                if not images:
+                    state.error = "Không thể lấy được hình ảnh nào. File có thể bị khoá hoặc chưa được chia sẻ công khai."
+                    state.phase = "error"
+                    return
+
+                state.status_msg = "Đang đóng gói PDF..."
+                state.progress = 0.90
+                safe_title = sanitize_filename(title)
+                pdf_path = os.path.join(tmp_dir, f"{safe_title}.pdf")
+                if builder.build_pdf(images, pdf_path):
+                    with open(pdf_path, "rb") as f:
+                        state.pdf_bytes = f.read()
+                    state.pdf_filename = f"{safe_title}.pdf"
+                    try:
+                        os.remove(pdf_path)
+                    except OSError:
+                        pass
+                    state.progress = 1.0
+                    state.status_msg = "Hoàn tất!"
+                    state.phase = "done"
+                else:
+                    state.error = "Lỗi trong quá trình tạo file PDF."
+                    state.phase = "error"
+            except Exception as exc:
+                state.error = str(exc)
                 state.phase = "error"
-                return
-            if resp.status_code != 200:
-                state.error = f"Google Export API trả về lỗi: HTTP {resp.status_code}. Hãy đảm bảo file đã được chia sẻ công khai."
-                state.phase = "error"
-                return
-
-            content_type = resp.headers.get("Content-Type", "")
-            if "text/html" in content_type and b"Sign in" in resp.content[:2000]:
-                state.error = "File yêu cầu đăng nhập Google. Hãy đảm bảo quyền xem công khai đã được bật."
-                state.phase = "error"
-                return
-
-            state.status_msg = "Đang nhận dữ liệu PDF..."
-            state.progress = 0.70
-            pdf_bytes = resp.content
-
-            # Get title from response headers or fallback
-            cd = resp.headers.get("Content-Disposition", "")
-            title = None
-            if 'filename=' in cd:
-                import re
-                m = re.search(r'filename\*?=["\']?(?:UTF-\d[\'"]*)?([^;\n"\']+)', cd)
-                if m:
-                    title = m.group(1).strip().rstrip(".pdf")
-            if not title:
-                title = f"google_{doc_type}_{file_id}"
-
-            state.status_msg = "Đang hoàn tất..."
-            state.progress = 0.95
-            safe_title = sanitize_filename(title)
-            state.pdf_bytes = pdf_bytes
-            state.pdf_filename = f"{safe_title}.pdf"
-            state.progress = 1.0
-            state.status_msg = "Hoàn tất!"
-            state.phase = "done"
+                try:
+                    browser.close()
+                except Exception:
+                    pass
+            finally:
+                state.running = False
             return
 
         # ── Standard Drive file: use Selenium browser ────────────────────────
