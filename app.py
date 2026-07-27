@@ -41,128 +41,118 @@ st.set_page_config(
 # ─────────────────────────────────────────────────────────────────────────────
 st.markdown("""
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
 
 /* ── Base ── */
 html, body, [class*="css"] {
     font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
     -webkit-font-smoothing: antialiased;
+    color: #f8fafc;
 }
 
-/* ── Background & Ambient Lighting ── */
+/* ── Background ── */
 .stApp {
-    background-color: #0b0d12;
-    background-image: 
-        radial-gradient(circle at 50% 0%, rgba(99, 102, 241, 0.08) 0%, transparent 60%),
-        radial-gradient(circle at 10% 20%, rgba(59, 130, 246, 0.04) 0%, transparent 40%),
-        radial-gradient(circle at 90% 80%, rgba(139, 92, 246, 0.04) 0%, transparent 40%);
-    background-attachment: fixed;
+    background-color: #0f172a !important; /* Solid Dark Slate for high contrast */
 }
 
 #MainMenu, footer, header { visibility: hidden; }
 .block-container {
-    padding-top: 3rem;
+    padding-top: 2.5rem;
     padding-bottom: 4rem;
-    max-width: 660px;
+    max-width: 680px;
 }
 
 /* ── Hero Header ── */
 .gs-hero {
     text-align: center;
-    margin-bottom: 2.2rem;
-    position: relative;
+    margin-bottom: 2rem;
 }
 .gs-badge-header {
     display: inline-block;
-    padding: 0.25rem 0.75rem;
+    padding: 0.3rem 0.85rem;
     border-radius: 99px;
-    background: rgba(99, 102, 241, 0.08);
-    border: 1px solid rgba(99, 102, 241, 0.2);
-    color: #818cf8;
-    font-size: 0.72rem;
+    background: #1e293b;
+    border: 1px solid #3b82f6;
+    color: #60a5fa;
+    font-size: 0.75rem;
     font-weight: 700;
     letter-spacing: 0.1em;
     text-transform: uppercase;
-    margin-bottom: 0.8rem;
+    margin-bottom: 0.75rem;
 }
 .gs-wordmark {
-    font-size: 2.4rem;
+    font-size: 2.5rem;
     font-weight: 800;
-    letter-spacing: -0.04em;
+    letter-spacing: -0.03em;
     color: #ffffff;
     line-height: 1.15;
 }
 .gs-wordmark span {
-    background: linear-gradient(135deg, #818cf8 0%, #3b82f6 100%);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
+    color: #60a5fa;
 }
 .gs-tagline {
-    margin-top: 0.5rem;
-    font-size: 0.92rem;
-    color: #94a3b8;
+    margin-top: 0.4rem;
+    font-size: 0.95rem;
+    color: #cbd5e1; /* Bright Silver */
     font-weight: 400;
 }
 
 /* ── Tabs ── */
 .stTabs [data-baseweb="tab-list"] {
-    background: rgba(18, 22, 31, 0.75);
-    backdrop-filter: blur(12px);
-    border-radius: 14px;
-    padding: 5px;
-    gap: 4px;
-    border: 1px solid rgba(255, 255, 255, 0.06);
-    margin-bottom: 1.6rem;
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+    background: #1e293b !important;
+    border-radius: 12px !important;
+    padding: 6px !important;
+    gap: 6px !important;
+    border: 1px solid #334155 !important;
+    margin-bottom: 1.5rem !important;
 }
 .stTabs [data-baseweb="tab"] {
     background: transparent !important;
-    border-radius: 10px !important;
-    color: #64748b !important;
-    font-size: 0.88rem !important;
+    border-radius: 8px !important;
+    color: #cbd5e1 !important; /* Bright Readable Gray */
+    font-size: 0.9rem !important;
     font-weight: 600 !important;
     padding: 0.65rem 1.25rem !important;
     border: none !important;
-    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1) !important;
+    transition: all 0.2s ease !important;
 }
 .stTabs [data-baseweb="tab"]:hover {
-    color: #f1f5f9 !important;
-    background: rgba(255, 255, 255, 0.03) !important;
+    color: #ffffff !important;
+    background: rgba(255, 255, 255, 0.05) !important;
 }
 .stTabs [aria-selected="true"] {
-    background: rgba(99, 102, 241, 0.15) !important;
-    color: #818cf8 !important;
-    border: 1px solid rgba(99, 102, 241, 0.3) !important;
-    box-shadow: 0 2px 12px rgba(99, 102, 241, 0.15) !important;
+    background: #2563eb !important; /* Vibrant Solid Blue */
+    color: #ffffff !important;
+    font-weight: 700 !important;
+    box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3) !important;
 }
 .stTabs [data-baseweb="tab-highlight"],
 .stTabs [data-baseweb="tab-border"] { display: none !important; }
 
 /* ── Card Containers ── */
 .gs-card {
-    background: rgba(18, 22, 31, 0.7);
-    backdrop-filter: blur(16px);
-    border: 1px solid rgba(255, 255, 255, 0.07);
-    border-radius: 20px;
-    padding: 2.2rem;
-    box-shadow: 0 12px 40px -10px rgba(0, 0, 0, 0.5);
+    background: #1e293b; /* Distinct Card Background */
+    border: 1px solid #334155; /* High Contrast Border */
+    border-radius: 16px;
+    padding: 2rem;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
 }
 
 /* ── Field Labels ── */
 .gs-label {
-    font-size: 0.73rem;
+    font-size: 0.8rem;
     font-weight: 700;
-    letter-spacing: 0.1em;
+    letter-spacing: 0.08em;
     text-transform: uppercase;
-    color: #94a3b8;
-    margin-bottom: 0.5rem;
+    color: #f1f5f9 !important; /* Bright White-Gray */
+    margin-bottom: 0.6rem;
     display: flex;
     align-items: center;
     justify-content: space-between;
 }
 .gs-label-tag {
-    font-size: 0.68rem;
-    color: #64748b;
+    font-size: 0.75rem;
+    color: #94a3b8;
     font-weight: 500;
     text-transform: none;
     letter-spacing: normal;
@@ -170,297 +160,287 @@ html, body, [class*="css"] {
 
 /* ── Form Inputs ── */
 .stTextInput > div > div > input {
-    background: rgba(11, 13, 18, 0.8) !important;
-    border: 1px solid rgba(255, 255, 255, 0.09) !important;
-    border-radius: 12px !important;
-    color: #f8fafc !important;
-    font-size: 0.93rem !important;
-    padding: 0.8rem 1.1rem !important;
-    transition: all 0.2s ease !important;
-    font-weight: 400 !important;
+    background: #0f172a !important;
+    border: 1px solid #475569 !important;
+    border-radius: 10px !important;
+    color: #ffffff !important;
+    font-size: 0.95rem !important;
+    padding: 0.85rem 1.1rem !important;
+    font-weight: 500 !important;
 }
 .stTextInput > div > div > input:focus {
-    border-color: #818cf8 !important;
-    box-shadow: 0 0 0 4px rgba(129, 140, 248, 0.15) !important;
+    border-color: #60a5fa !important;
+    box-shadow: 0 0 0 3px rgba(96, 165, 250, 0.25) !important;
     outline: none !important;
-    background: rgba(11, 13, 18, 0.95) !important;
 }
 .stTextInput > div > div > input::placeholder {
-    color: #475569 !important;
+    color: #64748b !important;
 }
 .stTextInput label { display: none !important; }
 
-/* ── File Uploader ── */
-[data-testid="stFileUploader"] {
-    background: rgba(11, 13, 18, 0.6) !important;
-    border: 1.5px dashed rgba(255, 255, 255, 0.12) !important;
-    border-radius: 14px !important;
-    padding: 1.2rem !important;
-    transition: all 0.2s ease !important;
-}
-[data-testid="stFileUploader"]:hover {
-    border-color: rgba(129, 140, 248, 0.4) !important;
-    background: rgba(11, 13, 18, 0.8) !important;
-}
-[data-testid="stFileUploader"] p, 
-[data-testid="stFileUploader"] span {
-    color: #94a3b8 !important;
-    font-size: 0.88rem !important;
-}
-[data-testid="stFileUploader"] button {
-    background: rgba(255, 255, 255, 0.06) !important;
-    border: 1px solid rgba(255, 255, 255, 0.1) !important;
-    border-radius: 8px !important;
-    color: #f1f5f9 !important;
-}
-
-/* ── Selectbox & Radio ── */
-.stSelectbox [data-baseweb="select"] > div {
-    background: rgba(11, 13, 18, 0.8) !important;
-    border-color: rgba(255, 255, 255, 0.09) !important;
+/* ── File Uploader Styling Fix ── */
+[data-testid="stFileUploader"],
+[data-testid="stFileUploaderDropzone"] {
+    background: #0f172a !important;
+    border: 2px dashed #475569 !important;
     border-radius: 12px !important;
     color: #f8fafc !important;
+}
+[data-testid="stFileUploaderDropzone"]:hover {
+    border-color: #60a5fa !important;
+    background: #162032 !important;
+}
+[data-testid="stFileUploader"] p,
+[data-testid="stFileUploader"] span,
+[data-testid="stFileUploaderDropzoneInstructions"] {
+    color: #e2e8f0 !important; /* High contrast text */
     font-size: 0.9rem !important;
 }
-.stRadio label {
-    font-size: 0.88rem !important;
-    color: #cbd5e1 !important;
+[data-testid="stFileUploader"] button {
+    background: #334155 !important;
+    border: 1px solid #475569 !important;
+    border-radius: 8px !important;
+    color: #ffffff !important;
+    font-weight: 600 !important;
+}
+[data-testid="stFileUploader"] button:hover {
+    background: #475569 !important;
+}
+
+/* ── Radio & Select ── */
+.stRadio label,
+.stRadio [data-testid="stMarkdownContainer"] p {
+    font-size: 0.92rem !important;
+    color: #f8fafc !important; /* High contrast bright white text */
+    font-weight: 500 !important;
+}
+.stSelectbox [data-baseweb="select"] > div {
+    background: #0f172a !important;
+    border-color: #475569 !important;
+    border-radius: 10px !important;
+    color: #ffffff !important;
 }
 
 /* ── Primary Button ── */
 .stButton > button[kind="primary"] {
-    background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%) !important;
+    background: #2563eb !important;
     border: none !important;
-    border-radius: 12px !important;
+    border-radius: 10px !important;
     color: #ffffff !important;
-    font-size: 0.93rem !important;
+    font-size: 0.95rem !important;
     font-weight: 700 !important;
-    letter-spacing: 0.01em !important;
-    padding: 0.82rem 1.6rem !important;
+    padding: 0.85rem 1.6rem !important;
     width: 100% !important;
-    box-shadow: 0 4px 16px rgba(79, 70, 229, 0.3) !important;
-    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
+    box-shadow: 0 4px 14px rgba(37, 99, 235, 0.3) !important;
+    transition: all 0.2s ease !important;
 }
 .stButton > button[kind="primary"]:hover {
-    box-shadow: 0 8px 24px rgba(79, 70, 229, 0.45) !important;
-    transform: translateY(-2px) !important;
-    opacity: 0.95 !important;
-}
-.stButton > button[kind="primary"]:active {
-    transform: translateY(0) !important;
+    background: #1d4ed8 !important;
+    box-shadow: 0 6px 20px rgba(37, 99, 235, 0.45) !important;
 }
 .stButton > button[kind="primary"]:disabled {
-    opacity: 0.35 !important;
+    background: #334155 !important;
+    color: #94a3b8 !important;
     box-shadow: none !important;
+    opacity: 0.7 !important;
     cursor: not-allowed !important;
-    transform: none !important;
 }
 
 /* ── Secondary Button ── */
 .stButton > button[kind="secondary"] {
-    background: rgba(255, 255, 255, 0.04) !important;
-    border: 1px solid rgba(255, 255, 255, 0.1) !important;
-    border-radius: 12px !important;
-    color: #cbd5e1 !important;
-    font-size: 0.88rem !important;
+    background: #0f172a !important;
+    border: 1px solid #475569 !important;
+    border-radius: 10px !important;
+    color: #f8fafc !important;
+    font-size: 0.9rem !important;
     font-weight: 600 !important;
     width: 100% !important;
-    padding: 0.72rem 1.2rem !important;
-    transition: all 0.2s ease !important;
+    padding: 0.75rem 1.2rem !important;
 }
 .stButton > button[kind="secondary"]:hover {
-    background: rgba(255, 255, 255, 0.08) !important;
-    border-color: rgba(255, 255, 255, 0.2) !important;
-    color: #ffffff !important;
+    background: #334155 !important;
+    border-color: #64748b !important;
 }
 
 /* ── Download Button ── */
 .stDownloadButton > button {
-    background: rgba(99, 102, 241, 0.1) !important;
-    border: 1px solid rgba(129, 140, 248, 0.4) !important;
-    border-radius: 12px !important;
-    color: #818cf8 !important;
-    font-size: 0.92rem !important;
+    background: #2563eb !important;
+    border: 1px solid #3b82f6 !important;
+    border-radius: 10px !important;
+    color: #ffffff !important;
+    font-size: 0.95rem !important;
     font-weight: 700 !important;
-    padding: 0.82rem 1.6rem !important;
+    padding: 0.85rem 1.6rem !important;
     width: 100% !important;
-    transition: all 0.2s ease !important;
-    box-shadow: 0 4px 16px rgba(99, 102, 241, 0.1) !important;
+    box-shadow: 0 4px 14px rgba(37, 99, 235, 0.3) !important;
 }
 .stDownloadButton > button:hover {
-    background: #6366f1 !important;
-    color: #ffffff !important;
-    box-shadow: 0 8px 24px rgba(99, 102, 241, 0.35) !important;
-    transform: translateY(-1px) !important;
+    background: #1d4ed8 !important;
 }
 
 /* ── Progress Bar ── */
 .stProgress > div > div {
-    background: rgba(255, 255, 255, 0.06) !important;
+    background: #0f172a !important;
     border-radius: 99px !important;
-    height: 6px !important;
+    height: 8px !important;
 }
 .stProgress > div > div > div {
-    background: linear-gradient(90deg, #6366f1, #a855f7) !important;
+    background: #3b82f6 !important;
     border-radius: 99px !important;
 }
 
-/* ── Custom Component Boxes ── */
+/* ── Custom Status & Result Boxes ── */
 .gs-status-box {
-    background: rgba(11, 13, 18, 0.7);
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    border-radius: 14px;
-    padding: 1rem 1.25rem;
-    margin: 0.8rem 0;
+    background: #0f172a;
+    border: 1px solid #334155;
+    border-radius: 12px;
+    padding: 1.1rem 1.3rem;
+    margin: 0.9rem 0;
 }
 .gs-status-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 0.25rem;
+    margin-bottom: 0.35rem;
 }
 .gs-status-badge {
-    font-size: 0.65rem;
+    font-size: 0.7rem;
     font-weight: 800;
     letter-spacing: 0.1em;
-    text-transform: uppercase;
-    padding: 0.2rem 0.5rem;
+    padding: 0.25rem 0.6rem;
     border-radius: 6px;
-    background: rgba(99, 102, 241, 0.15);
-    color: #818cf8;
-    border: 1px solid rgba(99, 102, 241, 0.25);
+    background: #1e3a8a;
+    color: #93c5fd;
+    border: 1px solid #3b82f6;
 }
 .gs-status-text {
-    font-size: 0.88rem;
-    color: #e2e8f0;
-    font-weight: 500;
+    font-size: 0.93rem;
+    color: #ffffff;
+    font-weight: 600;
 }
 .gs-status-hint {
-    font-size: 0.78rem;
-    color: #64748b;
-    margin-top: 0.2rem;
+    font-size: 0.82rem;
+    color: #cbd5e1;
+    margin-top: 0.25rem;
 }
 
 .gs-result {
-    background: rgba(16, 185, 129, 0.06);
-    border: 1px solid rgba(16, 185, 129, 0.25);
-    border-radius: 14px;
-    padding: 1.1rem 1.25rem;
-    margin: 0.8rem 0;
+    background: #064e3b;
+    border: 1px solid #10b981;
+    border-radius: 12px;
+    padding: 1.1rem 1.3rem;
+    margin: 0.9rem 0;
 }
 .gs-result-badge {
     display: inline-block;
-    font-size: 0.65rem;
+    font-size: 0.7rem;
     font-weight: 800;
     letter-spacing: 0.1em;
-    text-transform: uppercase;
-    padding: 0.2rem 0.55rem;
+    padding: 0.25rem 0.6rem;
     border-radius: 6px;
-    background: rgba(16, 185, 129, 0.15);
-    color: #34d399;
-    border: 1px solid rgba(16, 185, 129, 0.3);
+    background: #022c22;
+    color: #6ee7b7;
+    border: 1px solid #10b981;
     margin-bottom: 0.4rem;
 }
 .gs-result-name {
-    font-size: 0.95rem;
-    color: #f8fafc;
-    font-weight: 600;
+    font-size: 0.98rem;
+    color: #ffffff;
+    font-weight: 700;
     word-break: break-all;
 }
 .gs-result-meta {
-    font-size: 0.8rem;
-    color: #94a3b8;
+    font-size: 0.85rem;
+    color: #d1fae5;
     margin-top: 0.3rem;
 }
 
 .gs-error {
-    background: rgba(239, 68, 68, 0.06);
-    border: 1px solid rgba(239, 68, 68, 0.25);
-    border-radius: 14px;
-    padding: 1.1rem 1.25rem;
-    margin: 0.8rem 0;
+    background: #7f1d1d;
+    border: 1px solid #ef4444;
+    border-radius: 12px;
+    padding: 1.1rem 1.3rem;
+    margin: 0.9rem 0;
 }
 .gs-error-badge {
     display: inline-block;
-    font-size: 0.65rem;
+    font-size: 0.7rem;
     font-weight: 800;
     letter-spacing: 0.1em;
-    text-transform: uppercase;
-    padding: 0.2rem 0.55rem;
+    padding: 0.25rem 0.6rem;
     border-radius: 6px;
-    background: rgba(239, 68, 68, 0.15);
-    color: #f87171;
-    border: 1px solid rgba(239, 68, 68, 0.3);
+    background: #450a0a;
+    color: #fca5a5;
+    border: 1px solid #ef4444;
     margin-bottom: 0.4rem;
 }
 .gs-error-msg {
-    font-size: 0.9rem;
-    color: #fecaca;
-    font-weight: 400;
+    font-size: 0.92rem;
+    color: #ffffff;
+    font-weight: 500;
 }
 
 .gs-compress-prompt {
-    background: rgba(99, 102, 241, 0.05);
-    border: 1px solid rgba(99, 102, 241, 0.2);
-    border-radius: 14px;
-    padding: 1rem 1.25rem;
-    margin: 0.8rem 0;
+    background: #0f172a;
+    border: 1px solid #3b82f6;
+    border-radius: 12px;
+    padding: 1.1rem 1.3rem;
+    margin: 0.9rem 0;
 }
 .gs-compress-badge {
     display: inline-block;
-    font-size: 0.65rem;
+    font-size: 0.7rem;
     font-weight: 800;
     letter-spacing: 0.1em;
-    text-transform: uppercase;
-    padding: 0.2rem 0.55rem;
+    padding: 0.25rem 0.6rem;
     border-radius: 6px;
-    background: rgba(99, 102, 241, 0.12);
-    color: #a5b4fc;
-    border: 1px solid rgba(99, 102, 241, 0.25);
-    margin-bottom: 0.3rem;
+    background: #1e3a8a;
+    color: #93c5fd;
+    border: 1px solid #3b82f6;
+    margin-bottom: 0.35rem;
 }
 .gs-compress-title {
-    font-size: 0.9rem;
-    font-weight: 600;
-    color: #f1f5f9;
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: #ffffff;
 }
 .gs-compress-desc {
-    font-size: 0.82rem;
-    color: #94a3b8;
-    margin-top: 0.15rem;
+    font-size: 0.85rem;
+    color: #cbd5e1;
+    margin-top: 0.2rem;
 }
 
 .gs-divider {
     height: 1px;
-    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.09), transparent);
-    margin: 1.4rem 0;
+    background: #334155;
+    margin: 1.5rem 0;
 }
-.gs-spacer { height: 0.85rem; }
-.gs-spacer-sm { height: 0.45rem; }
+.gs-spacer { height: 0.9rem; }
+.gs-spacer-sm { height: 0.5rem; }
 
 /* ── Stats Pill Grid ── */
 .gs-stats {
     display: flex;
-    gap: 0.75rem;
-    margin: 0.75rem 0 1rem 0;
+    gap: 0.8rem;
+    margin: 0.8rem 0 1.1rem 0;
 }
 .gs-stat {
-    background: rgba(11, 13, 18, 0.6);
-    border: 1px solid rgba(255, 255, 255, 0.07);
-    border-radius: 12px;
-    padding: 0.6rem 0.8rem;
-    font-size: 0.75rem;
-    color: #64748b;
+    background: #0f172a;
+    border: 1px solid #334155;
+    border-radius: 10px;
+    padding: 0.7rem 0.9rem;
+    font-size: 0.8rem;
+    color: #cbd5e1;
     flex: 1;
     text-align: center;
     font-weight: 500;
 }
 .gs-stat strong {
     display: block;
-    font-size: 0.95rem;
-    color: #f1f5f9;
-    font-weight: 700;
-    margin-bottom: 0.1rem;
+    font-size: 1.05rem;
+    color: #ffffff;
+    font-weight: 800;
+    margin-bottom: 0.15rem;
 }
 .gs-stat-highlight strong {
     color: #34d399;
@@ -468,36 +448,36 @@ html, body, [class*="css"] {
 
 /* ── Sidebar Styling ── */
 section[data-testid="stSidebar"] {
-    background: #080a0e !important;
-    border-right: 1px solid rgba(255, 255, 255, 0.06) !important;
+    background: #0f172a !important;
+    border-right: 1px solid #334155 !important;
 }
 section[data-testid="stSidebar"] h3 {
-    color: #f8fafc;
-    font-size: 0.9rem;
+    color: #ffffff;
+    font-size: 0.95rem;
     font-weight: 700;
-    letter-spacing: 0.02em;
     margin-top: 1rem;
 }
 section[data-testid="stSidebar"] p, 
 section[data-testid="stSidebar"] li {
-    color: #94a3b8;
-    font-size: 0.83rem;
-    line-height: 1.65;
+    color: #cbd5e1;
+    font-size: 0.85rem;
+    line-height: 1.7;
 }
 section[data-testid="stSidebar"] strong {
-    color: #cbd5e1;
+    color: #ffffff;
 }
 section[data-testid="stSidebar"] code {
-    background: rgba(255, 255, 255, 0.05);
-    border: 1px solid rgba(255, 255, 255, 0.08);
+    background: #1e293b;
+    border: 1px solid #334155;
     border-radius: 4px;
-    padding: 1px 6px;
-    font-size: 0.78rem;
-    color: #818cf8;
+    padding: 2px 6px;
+    font-size: 0.82rem;
+    color: #60a5fa;
 }
 
 .stAlert { display: none !important; }
 </style>
+
 
 """, unsafe_allow_html=True)
 
