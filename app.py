@@ -489,7 +489,58 @@ section[data-testid="stSidebar"] code {
     border-radius: 4px;
     padding: 2px 6px;
     font-size: 0.82rem;
-    color: #60a5fa;
+/* ── Top-Right Popover Help Button Styling ── */
+div[data-testid="stPopover"] {
+    display: flex;
+    justify-content: flex-end;
+}
+div[data-testid="stPopover"] > button {
+    border-radius: 50% !important;
+    width: 44px !important;
+    height: 44px !important;
+    min-width: 44px !important;
+    padding: 0 !important;
+    font-size: 1.25rem !important;
+    font-weight: 800 !important;
+    background: #1e293b !important;
+    border: 2px solid #3b82f6 !important;
+    color: #60a5fa !important;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3) !important;
+    transition: all 0.2s ease !important;
+}
+div[data-testid="stPopover"] > button:hover {
+    background: #2563eb !important;
+    color: #ffffff !important;
+    border-color: #93c5fd !important;
+    transform: scale(1.08) !important;
+}
+div[data-testid="stPopoverBody"] {
+    background: #1e293b !important;
+    border: 1px solid #475569 !important;
+    border-radius: 16px !important;
+    color: #f8fafc !important;
+    padding: 1.4rem !important;
+    max-width: 440px !important;
+    box-shadow: 0 12px 36px rgba(0, 0, 0, 0.5) !important;
+}
+div[data-testid="stPopoverBody"] h3 {
+    color: #ffffff !important;
+    font-size: 1.05rem !important;
+    font-weight: 700 !important;
+    margin-bottom: 0.75rem !important;
+}
+div[data-testid="stPopoverBody"] h4 {
+    color: #60a5fa !important;
+    font-size: 0.88rem !important;
+    font-weight: 700 !important;
+    margin-top: 0.8rem !important;
+    margin-bottom: 0.3rem !important;
+}
+div[data-testid="stPopoverBody"] p,
+div[data-testid="stPopoverBody"] li {
+    color: #cbd5e1 !important;
+    font-size: 0.83rem !important;
+    line-height: 1.6 !important;
 }
 
 .stAlert { display: none !important; }
@@ -710,15 +761,43 @@ def _run_inline_compress(pdf_bytes: bytes, filename: str, quality: str):
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-#  UI — Hero
+#  UI — Hero & Top Right Help Button
 # ─────────────────────────────────────────────────────────────────────────────
-st.markdown("""
-<div class="gs-hero">
+col_hero, col_help = st.columns([6, 1])
+
+with col_hero:
+    st.markdown("""
+<div class="gs-hero" style="text-align: left; margin-bottom: 1.5rem;">
     <div class="gs-badge-header">STUDIO UTILITY</div>
     <div class="gs-wordmark">GDrive<span>Saver</span></div>
     <div class="gs-tagline">Công cụ tải và tối ưu tài liệu Google Drive chuyên nghiệp</div>
 </div>
 """, unsafe_allow_html=True)
+
+with col_help:
+    st.markdown("<div style='height: 0.5rem;'></div>", unsafe_allow_html=True)
+    with st.popover("?", use_container_width=True):
+        st.markdown("""
+### Hướng dẫn & Lưu ý sử dụng
+
+#### 1. Tải xuống file Google Drive
+- **Link hỗ trợ**: Dán đường dẫn dạng `/file/d/...` hoặc link thư mục `/drive/folders/...` (hệ thống sẽ tải file đầu tiên).
+- **Loại tài liệu**: Phù hợp cho file dạng **View-only** (Chỉ xem, bị khóa nút Download).
+- **Thời gian xử lý**: Trình duyệt ảo sẽ tự động mở và cuộn qua toàn bộ trang (từ 1 đến 3 phút tùy độ dài file).
+
+#### 2. Nén dung lượng file PDF
+- **Tự động**: Sau khi tải xong file từ GDrive, bạn có thể nhấn **Nén file này** ngay tại chỗ.
+- **Tải lên thủ công**: Chuyển sang tab **Nén file PDF** để nén bất kỳ file PDF nào có sẵn.
+- **Mức chất lượng nén**:
+  - *Nhỏ nhất (72 dpi)*: Giảm tối đa dung lượng file.
+  - *Cân bằng (150 dpi)*: Khuyên dùng cho đọc và lưu trữ thông thường.
+  - *Chất lượng cao (300 dpi)*: Thích hợp in ấn tài liệu.
+  - *Tối đa (300+ dpi)*: Giữ nguyên độ nét cao nhất.
+
+#### 3. Lưu ý quan trọng
+- **Quyền truy cập**: File yêu cầu đăng nhập tài khoản Google cá nhân sẽ không tải được (cần quyền xem công khai / có link).
+- **Giữ nguyên màn hình**: Không tắt hoặc làm mới (Refresh) trang web khi hệ thống đang xử lý.
+""")
 
 # ─────────────────────────────────────────────────────────────────────────────
 #  Tabs
