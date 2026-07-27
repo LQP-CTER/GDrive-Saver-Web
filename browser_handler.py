@@ -556,138 +556,29 @@ class BrowserHandler:
     def capture_presentation_preview(self, total_pages: int = 0, progress_callback=None) -> List[bytes]:
         """
         Capture a Google Docs /preview page slide-by-slide.
-        The /preview endpoint is publicly accessible for view-only files.
         
-        Slide-count strategy (in order):
-          1. DOM filmstrip/counter selectors
-          2. Navigate END → read current slide number from URL (?slide=id.N or counter text)
-          3. Keep advancing until screenshot is identical to previous (deduplication)
+        Navigation: click right 75% of viewport (Google Slides /preview advances on right-click).
+        Termination: stop when two consecutive screenshots have the same MD5 hash.
+        
+        ponytail: simple beats clever — no keyboard events, no iframe switching needed.
         """
+        import hashlib
+
         images = []
         try:
-            # Extra wait for /preview iframe to fully render
+            # Wait for /preview to fully render
             time.sleep(6)
 
-            iframes = self.driver.find_elements(By.TAG_NAME, "iframe")
-            log_info(f"/preview: {len(iframes)} iframe(s) found on page")
+            cap = max(total_pages or 0, 200)  # safety cap
+            prev_hash = None
 
-            # Switch into the presentation iframe if content is inside one
-            presentation_frame = None
-            for iframe in iframes:
-                src = iframe.get_attribute("src") or ""
-                if "docs.google.com" in src or "presentation" in src or not src:
-                    try:
-                        self.driver.switch_to.frame(iframe)
-                        in_viewer = self.driver.execute_script(
-                            "return document.querySelector('.punch-viewer-content, canvas, [role=\"option\"]') !== null;"
-                        )
-                        if in_viewer:
-                            log_info("Switched into presentation iframe")
-                            presentation_frame = iframe
-                            break
-                        self.driver.switch_to.default_content()
-                    except Exception:
-                        self.driver.switch_to.default_content()
-
-            self.driver.execute_script("document.body && document.body.focus();")
-            time.sleep(0.5)
-
-            def _dispatch(keycode: int):
-                self.driver.execute_script(
-                    f"document.dispatchEvent(new KeyboardEvent('keydown', {{keyCode:{keycode}, bubbles:true}}));"
-                )
-
-            # ── Strategy 1: DOM counter / filmstrip ──────────────────────────
-            if not total_pages:
-                total_pages = self.driver.execute_script("""
-                    let counter = document.querySelector(
-                        '.punch-filmstrip-slide-number, .presenterSlideNumber,
-                         .ndfHFb-c4YZDc-EglORb'
-                    );
-                    if (counter) {
-                        let m = counter.textContent.match(/(\\d+)\\s*\\/\\s*(\\d+)/);
-                        if (m) return parseInt(m[2]);
-                    }
-                    let thumbs = document.querySelectorAll(
-                        '.punch-filmstrip-thumbnail, [role="option"]'
-                    );
-                    return thumbs.length || 0;
-                """) or 0
-
-            # ── Strategy 2: Navigate END and read slide number ───────────────
-            if not total_pages:
-                _dispatch(35)  # End key
-                time.sleep(2)
-                # Try reading from URL parameter ?slide=id.N or rm=... slide counter
-                url_now = self.driver.current_url
-                import re as _re
-                m = _re.search(r'slide=id\.p(\d+)', url_now)
-                if m:
-                    total_pages = int(m.group(1))
-                else:
-                    # Try any counter in DOM
-                    total_pages = self.driver.execute_script("""
-                        for (let el of document.querySelectorAll('*')) {
-                            let t = el.childElementCount === 0 ? el.textContent.trim() : '';
-                            let m = t.match(/^(\\d+)\\s*\\/\\s*(\\d+)$/);
-                            if (m) return parseInt(m[2]);
-                        }
-                        return 0;
-                    """) or 0
-                # Navigate back to start
-                _dispatch(36)  # Home key
-                time.sleep(1.5)
-
-            # ── Strategy 3: auto-advance until no new content ────────────────
-            if not total_pages:
-                log_warning("/preview: slide count unknown — advancing until stable")
-                _dispatch(36)
-                time.sleep(1.5)
-                prev_hash = None
-                import hashlib
-                while True:
-                    if presentation_frame:
-                        self.driver.switch_to.default_content()
-                    shot = self.driver.get_screenshot_as_png()
-                    h = hashlib.md5(shot).hexdigest() if shot else None
-                    if h == prev_hash:
-                        log_info("Screenshot unchanged — reached last slide")
-                        break
-                    if shot:
-                        images.append(shot)
-                    prev_hash = h
-                    if len(images) > 200:  # safety cap
-                        break
-                    if presentation_frame:
-                        try:
-                            self.driver.switch_to.frame(presentation_frame)
-                        except Exception:
-                            self.driver.switch_to.default_content()
-                    _dispatch(39)  # Right arrow
-                    time.sleep(config.SCROLL_WAIT * 2 + 0.5)
-                self.driver.switch_to.default_content()
-                log_info(f"Captured {len(images)} slide screenshot(s)")
-                return images
-
-            log_info(f"Capturing {total_pages} slide(s) via /preview screenshots")
-            _dispatch(36)   # Go HOME
-            time.sleep(1.5)
-
-            for i in range(total_pages):
-                if progress_callback:
-                    progress_callback(i + 1, total_pages, f"Chụp slide {i + 1}/{total_pages}")
-
-                time.sleep(1.0)
-
-                # Screenshot from main frame (full viewport)
-                if presentation_frame:
-                    self.driver.switch_to.default_content()
-
-                # Hide UI chrome
+            for i in range(cap):
+                # Hide UI chrome for clean screenshot
                 self.driver.execute_script("""
                     ['.punch-viewer-navbar','.ndfHFb-c4YZDc-Wrber-LgbsSe-haAclf',
                      '.punch-filmstrip-container','.ndfHFb-c4YZDc-zsEIvc-jfdpUb-b0t70b',
-                     '.docs-material-gm-header','header','.punch-viewer-controls'
+                     '.docs-material-gm-header','header','.punch-viewer-controls',
+                     '.punch-viewer-speaker-notes-container'
                     ].forEach(s => document.querySelectorAll(s).forEach(
                         e => e.style.setProperty('display','none','important')
                     ));
@@ -696,36 +587,47 @@ class BrowserHandler:
                 time.sleep(0.8)
 
                 shot = self.driver.get_screenshot_as_png()
+                h = hashlib.md5(shot).hexdigest() if shot else None
+
+                if h == prev_hash:
+                    log_info(f"Screenshot unchanged — reached last slide after {len(images)} slide(s)")
+                    break
+
                 if shot:
                     images.append(shot)
+                prev_hash = h
 
-                # Restore chrome
+                if progress_callback:
+                    progress_callback(len(images), total_pages or len(images) + 1,
+                                      f"Chụp slide {len(images)}")
+
+                # Restore UI chrome before click (so click target exists)
                 self.driver.execute_script("""
                     ['.punch-viewer-navbar','.ndfHFb-c4YZDc-Wrber-LgbsSe-haAclf',
                      '.punch-filmstrip-container','.ndfHFb-c4YZDc-zsEIvc-jfdpUb-b0t70b',
-                     '.docs-material-gm-header','header','.punch-viewer-controls'
+                     '.docs-material-gm-header','header','.punch-viewer-controls',
+                     '.punch-viewer-speaker-notes-container'
                     ].forEach(s => document.querySelectorAll(s).forEach(
                         e => e.style.removeProperty('display')
                     ));
                 """)
 
-                if i < total_pages - 1:
-                    if presentation_frame:
-                        try:
-                            self.driver.switch_to.frame(presentation_frame)
-                        except Exception:
-                            self.driver.switch_to.default_content()
-                    _dispatch(39)   # Right arrow
-                    time.sleep(config.SCROLL_WAIT * 2)
-
-            self.driver.switch_to.default_content()
+                # Click right 75% of viewport — standard Google Slides /preview "next slide" zone
+                self.driver.execute_script("""
+                    var x = Math.floor(window.innerWidth * 0.75);
+                    var y = Math.floor(window.innerHeight * 0.5);
+                    var el = document.elementFromPoint(x, y);
+                    if (el) {
+                        el.dispatchEvent(new MouseEvent('click', {
+                            bubbles: true, cancelable: true,
+                            clientX: x, clientY: y
+                        }));
+                    }
+                """)
+                time.sleep(config.SCROLL_WAIT * 2 + 0.3)
 
         except Exception as e:
             log_error(f"Preview capture failed: {e}")
-            try:
-                self.driver.switch_to.default_content()
-            except Exception:
-                pass
 
         log_info(f"Captured {len(images)} slide screenshot(s)")
         return images
