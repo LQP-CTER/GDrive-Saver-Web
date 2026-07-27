@@ -167,7 +167,7 @@ class BrowserHandler:
 
         # Active wait: poll until GDrive viewer renders page content.
         # Fixed sleep is unreliable on cloud servers (Streamlit Cloud can be slow).
-        content_found = self._wait_for_content(timeout=30)
+        content_found = self._wait_for_content(timeout=60)
         if not content_found:
             page_title = self.driver.title or "(no title)"
             current_url = self.driver.current_url or ""
@@ -195,9 +195,9 @@ class BrowserHandler:
                 var blobs = document.querySelectorAll('img[src^="blob:"]').length;
                 var canvases = document.querySelectorAll('canvas').length;
                 var dataImgs = document.querySelectorAll('img[src^="data:"]').length;
-                var svgs = document.querySelectorAll('svg').length;
-                var slideElements = document.querySelectorAll('[role="option"], .punch-viewer-content, .slide-content, [aria-label*="Slide"], [aria-label*="Trang chiếu"]').length;
-                return blobs + canvases + dataImgs + (svgs > 2 ? svgs : 0) + slideElements;
+                var pages = document.querySelectorAll('.drive-viewer-paginated-page, .ndfHFb-c4YZDc-Wrber-SM8H3c-V1ur5d').length;
+                var slideElements = document.querySelectorAll('.punch-viewer-content, .slide-content, .punch-filmstrip-thumbnail, [role="option"]').length;
+                return blobs + canvases + dataImgs + pages + slideElements;
             """) or 0
             if result > 0:
                 log_info(f"Content ready: {result} rendered element(s) detected")
@@ -582,22 +582,20 @@ class BrowserHandler:
                     # Fallback: Hide sidebar and take a screenshot of the viewport
                     log_info(f"Using screenshot for slide {i+1}")
                     self.driver.execute_script("""
-                        let sidebar = document.querySelector('.left-sidebar-container, .punch-filmstrip-container');
-                        if (sidebar) sidebar.style.display = 'none';
-                        let bars = document.querySelectorAll('.docs-material-gm-header, .punch-viewer-navbar, .ndfHFb-c4YZDc-Wrber-LgbsSe-haAclf');
-                        for (let b of bars) b.style.display = 'none';
+                        let els = document.querySelectorAll('.docs-material-gm-header, .punch-viewer-navbar, .ndfHFb-c4YZDc-Wrber-LgbsSe-haAclf, .punch-filmstrip-container, .left-sidebar-container, .ndfHFb-c4YZDc-zsEIvc-jfdpUb-b0t70b');
+                        for (let e of els) e.style.display = 'none';
+                        window.dispatchEvent(new Event('resize'));
                     """)
-                    time.sleep(0.5)
+                    time.sleep(1)
                     screenshot = self.driver.get_screenshot_as_png()
                     if screenshot:
                         images.append(screenshot)
                     
                     # Restore UI
                     self.driver.execute_script("""
-                        let sidebar = document.querySelector('.left-sidebar-container, .punch-filmstrip-container');
-                        if (sidebar) sidebar.style.display = '';
-                        let bars = document.querySelectorAll('.docs-material-gm-header, .punch-viewer-navbar, .ndfHFb-c4YZDc-Wrber-LgbsSe-haAclf');
-                        for (let b of bars) b.style.display = '';
+                        let els = document.querySelectorAll('.docs-material-gm-header, .punch-viewer-navbar, .ndfHFb-c4YZDc-Wrber-LgbsSe-haAclf, .punch-filmstrip-container, .left-sidebar-container, .ndfHFb-c4YZDc-zsEIvc-jfdpUb-b0t70b');
+                        for (let e of els) e.style.display = '';
+                        window.dispatchEvent(new Event('resize'));
                     """)
 
                 if i < (total_pages or 1) - 1:
