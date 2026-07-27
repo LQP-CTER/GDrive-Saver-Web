@@ -242,6 +242,9 @@ class AppState:
 def _init_state():
     if "app" not in st.session_state:
         st.session_state.app = AppState()
+    elif not hasattr(st.session_state.app, "compress_done"):
+        # Old AppState from a previous deploy — recreate with new fields
+        st.session_state.app = AppState()
 
 
 _init_state()
