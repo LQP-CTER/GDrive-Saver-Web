@@ -145,14 +145,37 @@ class BrowserHandler:
         """Navigate to a Google Drive file URL and wait for it to load."""
         if not self.driver:
             raise RuntimeError("Browser not started. Call start() first.")
-        
+
         log_info("Opening file URL...")
         self.driver.get(url)
+        # Initial wait for basic page scaffolding
         time.sleep(config.PAGE_LOAD_WAIT)
-        
+
         if self._check_for_errors():
             return False
+
+        # Active wait: poll until GDrive viewer renders at least 1 blob image.
+        # Fixed sleep is unreliable on cloud servers (Streamlit Cloud can be slow).
+        self._wait_for_content(timeout=30)
         return True
+
+    def _wait_for_content(self, timeout: int = 30) -> bool:
+        """
+        Poll until Google Drive viewer renders at least one blob: page image.
+        Returns True if content appeared, False on timeout.
+        """
+        log_info(f"Waiting for document content (up to {timeout}s)...")
+        deadline = time.time() + timeout
+        while time.time() < deadline:
+            blobs = self.driver.execute_script(
+                "return document.querySelectorAll('img[src^=\"blob:\"]').length;"
+            ) or 0
+            if blobs > 0:
+                log_info(f"Content ready: {blobs} page image(s) detected")
+                return True
+            time.sleep(1)
+        log_warning("Content wait timed out — page may be blank or require login")
+        return False
     
     def get_folder_file_ids(self, folder_url: str) -> List[Tuple[str, str]]:
         """Extract file IDs and their names from a Google Drive folder."""
@@ -623,18 +646,25 @@ class BrowserHandler:
             return []
     
     def _capture_via_screenshots(self) -> List[bytes]:
-        """Capture pages via screenshots as a last resort."""
+        """Capture pages via individual element screenshots (last resort).
+        Only runs when blob images exist but canvas extraction failed.
+        Does NOT fall back to a blind full-page screenshot — that produces blank PDFs
+        when the page hasn't loaded or requires login.
+        """
         try:
             page_count = self.driver.execute_script(
                 "return document.querySelectorAll('img[src^=\"blob:\"]').length;"
             ) or 0
             if page_count > 0:
                 return self._screenshot_individual_pages(page_count)
-            screenshot = self.driver.get_screenshot_as_png()
-            return [screenshot] if screenshot else []
+            # No blob images present at all — page is blank/login/unloaded.
+            # Return empty so the caller can surface a proper error instead of a blank PDF.
+            log_warning("No blob images found — skipping screenshot fallback to avoid blank PDF")
+            return []
         except Exception as e:
             log_error(f"Screenshot capture failed: {e}")
             return []
+
     
     def _screenshot_individual_pages(self, page_count: int) -> List[bytes]:
         """Take individual screenshots of each page element."""
