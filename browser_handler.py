@@ -557,28 +557,27 @@ class BrowserHandler:
         """
         Capture a Google Docs /preview page slide-by-slide.
         The /preview endpoint is publicly accessible for view-only files.
-        Strategy:
-          1. Wait for the iframe content to fully render (up to 20s).
-          2. Switch into the iframe if the viewer is embedded in one.
-          3. Navigate with JS keydown RIGHT_ARROW and screenshot each slide.
+        
+        Slide-count strategy (in order):
+          1. DOM filmstrip/counter selectors
+          2. Navigate END → read current slide number from URL (?slide=id.N or counter text)
+          3. Keep advancing until screenshot is identical to previous (deduplication)
         """
         images = []
         try:
-            # Wait extra time for /preview iframe to fully render
-            time.sleep(5)
+            # Extra wait for /preview iframe to fully render
+            time.sleep(6)
 
-            # Dump iframe count and page title for debugging
             iframes = self.driver.find_elements(By.TAG_NAME, "iframe")
             log_info(f"/preview: {len(iframes)} iframe(s) found on page")
 
-            # Try switching into the presentation iframe if present
+            # Switch into the presentation iframe if content is inside one
             presentation_frame = None
             for iframe in iframes:
                 src = iframe.get_attribute("src") or ""
                 if "docs.google.com" in src or "presentation" in src or not src:
                     try:
                         self.driver.switch_to.frame(iframe)
-                        # Quick check if we're inside the slide viewer
                         in_viewer = self.driver.execute_script(
                             "return document.querySelector('.punch-viewer-content, canvas, [role=\"option\"]') !== null;"
                         )
@@ -586,45 +585,92 @@ class BrowserHandler:
                             log_info("Switched into presentation iframe")
                             presentation_frame = iframe
                             break
-                        else:
-                            self.driver.switch_to.default_content()
+                        self.driver.switch_to.default_content()
                     except Exception:
                         self.driver.switch_to.default_content()
 
-            # Focus the current context (works in both iframe and main frame)
             self.driver.execute_script("document.body && document.body.focus();")
             time.sleep(0.5)
 
-            # Detect total slides
+            def _dispatch(keycode: int):
+                self.driver.execute_script(
+                    f"document.dispatchEvent(new KeyboardEvent('keydown', {{keyCode:{keycode}, bubbles:true}}));"
+                )
+
+            # ── Strategy 1: DOM counter / filmstrip ──────────────────────────
             if not total_pages:
                 total_pages = self.driver.execute_script("""
                     let counter = document.querySelector(
-                        '.punch-filmstrip-slide-number, .presenterSlideNumber'
+                        '.punch-filmstrip-slide-number, .presenterSlideNumber,
+                         .ndfHFb-c4YZDc-EglORb'
                     );
                     if (counter) {
                         let m = counter.textContent.match(/(\\d+)\\s*\\/\\s*(\\d+)/);
                         if (m) return parseInt(m[2]);
                     }
-                    let thumbs = document.querySelectorAll('.punch-filmstrip-thumbnail, [role="option"]');
-                    if (thumbs.length) return thumbs.length;
-                    return 0;
+                    let thumbs = document.querySelectorAll(
+                        '.punch-filmstrip-thumbnail, [role="option"]'
+                    );
+                    return thumbs.length || 0;
                 """) or 0
 
-            # ponytail: if we can't detect slide count, just take 1 full-page screenshot
-            if total_pages == 0:
-                log_warning("/preview: could not detect slide count — taking single full-page screenshot")
+            # ── Strategy 2: Navigate END and read slide number ───────────────
+            if not total_pages:
+                _dispatch(35)  # End key
+                time.sleep(2)
+                # Try reading from URL parameter ?slide=id.N or rm=... slide counter
+                url_now = self.driver.current_url
+                import re as _re
+                m = _re.search(r'slide=id\.p(\d+)', url_now)
+                if m:
+                    total_pages = int(m.group(1))
+                else:
+                    # Try any counter in DOM
+                    total_pages = self.driver.execute_script("""
+                        for (let el of document.querySelectorAll('*')) {
+                            let t = el.childElementCount === 0 ? el.textContent.trim() : '';
+                            let m = t.match(/^(\\d+)\\s*\\/\\s*(\\d+)$/);
+                            if (m) return parseInt(m[2]);
+                        }
+                        return 0;
+                    """) or 0
+                # Navigate back to start
+                _dispatch(36)  # Home key
+                time.sleep(1.5)
+
+            # ── Strategy 3: auto-advance until no new content ────────────────
+            if not total_pages:
+                log_warning("/preview: slide count unknown — advancing until stable")
+                _dispatch(36)
+                time.sleep(1.5)
+                prev_hash = None
+                import hashlib
+                while True:
+                    if presentation_frame:
+                        self.driver.switch_to.default_content()
+                    shot = self.driver.get_screenshot_as_png()
+                    h = hashlib.md5(shot).hexdigest() if shot else None
+                    if h == prev_hash:
+                        log_info("Screenshot unchanged — reached last slide")
+                        break
+                    if shot:
+                        images.append(shot)
+                    prev_hash = h
+                    if len(images) > 200:  # safety cap
+                        break
+                    if presentation_frame:
+                        try:
+                            self.driver.switch_to.frame(presentation_frame)
+                        except Exception:
+                            self.driver.switch_to.default_content()
+                    _dispatch(39)  # Right arrow
+                    time.sleep(config.SCROLL_WAIT * 2 + 0.5)
                 self.driver.switch_to.default_content()
-                shot = self.driver.get_screenshot_as_png()
-                if shot:
-                    images.append(shot)
+                log_info(f"Captured {len(images)} slide screenshot(s)")
                 return images
 
             log_info(f"Capturing {total_pages} slide(s) via /preview screenshots")
-
-            # Navigate HOME first
-            self.driver.execute_script(
-                "document.dispatchEvent(new KeyboardEvent('keydown', {keyCode:36, bubbles:true}));"
-            )
+            _dispatch(36)   # Go HOME
             time.sleep(1.5)
 
             for i in range(total_pages):
@@ -633,7 +679,7 @@ class BrowserHandler:
 
                 time.sleep(1.0)
 
-                # Switch back to main frame for screenshot (captures full viewport)
+                # Screenshot from main frame (full viewport)
                 if presentation_frame:
                     self.driver.switch_to.default_content()
 
@@ -653,7 +699,7 @@ class BrowserHandler:
                 if shot:
                     images.append(shot)
 
-                # Restore and advance
+                # Restore chrome
                 self.driver.execute_script("""
                     ['.punch-viewer-navbar','.ndfHFb-c4YZDc-Wrber-LgbsSe-haAclf',
                      '.punch-filmstrip-container','.ndfHFb-c4YZDc-zsEIvc-jfdpUb-b0t70b',
@@ -664,19 +710,14 @@ class BrowserHandler:
                 """)
 
                 if i < total_pages - 1:
-                    # Switch back into iframe to send key event
                     if presentation_frame:
                         try:
                             self.driver.switch_to.frame(presentation_frame)
                         except Exception:
                             self.driver.switch_to.default_content()
-
-                    self.driver.execute_script(
-                        "document.dispatchEvent(new KeyboardEvent('keydown', {keyCode:39, bubbles:true}));"
-                    )
+                    _dispatch(39)   # Right arrow
                     time.sleep(config.SCROLL_WAIT * 2)
 
-            # Always restore to default context
             self.driver.switch_to.default_content()
 
         except Exception as e:
