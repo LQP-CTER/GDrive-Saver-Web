@@ -92,6 +92,13 @@ class BrowserHandler:
         options.add_argument("--disable-blink-features=AutomationControlled")
         options.add_experimental_option("excludeSwitches", ["enable-automation"])
         options.add_experimental_option("useAutomationExtension", False)
+        # Required for Service Worker and full rendering on Linux containers
+        options.add_argument("--enable-features=NetworkService,NetworkServiceInProcess")
+        options.add_argument("--allow-running-insecure-content")
+        options.add_argument("--disable-web-security")
+        options.add_argument("--ignore-certificate-errors")
+        options.add_argument("--disable-site-isolation-trials")
+        options.add_argument("--disable-features=IsolateOrigins,site-per-process")
 
         if config.CHROME_USER_DATA_DIR:
             options.add_argument(f"--user-data-dir={config.CHROME_USER_DATA_DIR}")
@@ -154,24 +161,40 @@ class BrowserHandler:
         if self._check_for_errors():
             return False
 
-        # Active wait: poll until GDrive viewer renders at least 1 blob image.
+        # Active wait: poll until GDrive viewer renders page content.
         # Fixed sleep is unreliable on cloud servers (Streamlit Cloud can be slow).
-        self._wait_for_content(timeout=30)
+        content_found = self._wait_for_content(timeout=30)
+        if not content_found:
+            page_title = self.driver.title or "(no title)"
+            current_url = self.driver.current_url or ""
+            log_warning(f"Page title at timeout: {page_title}")
+            log_warning(f"Current URL at timeout: {current_url}")
+            # Detect Google sign-in redirect
+            if "accounts.google.com" in current_url or "ServiceLogin" in current_url:
+                log_error("Redirected to Google sign-in — file requires authentication")
+                return False
+            # Content didn't appear but page seems valid — proceed anyway
+            # (some file types render without blob: images)
+            log_warning("No blob/canvas content detected — proceeding (may fail at extraction)")
         return True
 
     def _wait_for_content(self, timeout: int = 30) -> bool:
         """
-        Poll until Google Drive viewer renders at least one blob: page image.
-        Returns True if content appeared, False on timeout.
+        Poll until Google Drive viewer renders page content.
+        Detects blob: images (main viewer), canvas elements, or data: URL images.
+        Returns True if any content appeared, False on timeout.
         """
         log_info(f"Waiting for document content (up to {timeout}s)...")
         deadline = time.time() + timeout
         while time.time() < deadline:
-            blobs = self.driver.execute_script(
-                "return document.querySelectorAll('img[src^=\"blob:\"]').length;"
-            ) or 0
-            if blobs > 0:
-                log_info(f"Content ready: {blobs} page image(s) detected")
+            result = self.driver.execute_script("""
+                var blobs = document.querySelectorAll('img[src^="blob:"]').length;
+                var canvases = document.querySelectorAll('canvas').length;
+                var dataImgs = document.querySelectorAll('img[src^="data:"]').length;
+                return blobs + canvases + dataImgs;
+            """) or 0
+            if result > 0:
+                log_info(f"Content ready: {result} rendered element(s) detected")
                 return True
             time.sleep(1)
         log_warning("Content wait timed out — page may be blank or require login")
