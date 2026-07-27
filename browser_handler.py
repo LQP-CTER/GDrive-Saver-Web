@@ -518,10 +518,21 @@ class BrowserHandler:
             "return !!document.querySelector('.punch-viewer-content, .punch-filmstrip-thumbnail, [role=\"option\"]');"
         )
         if is_presentation:
-            log_info("Detected Google Presentation format. Using slide-by-slide extraction...")
-            pres_images = self._extract_presentation_slides(total_pages, progress_callback)
-            if pres_images:
-                return pres_images
+            log_info("Detected Google Presentation format. Redirecting to /preview for faster extraction...")
+            import re as _re
+            m = _re.search(r'/d/([a-zA-Z0-9_-]+)', self.driver.current_url)
+            if m:
+                file_id = m.group(1)
+                self.driver.get(f"https://docs.google.com/presentation/d/{file_id}/preview")
+                # Reuse our robust click-based hash deduplication method
+                pres_images = self.capture_presentation_preview(total_pages, progress_callback)
+                if pres_images:
+                    return pres_images
+            else:
+                log_warning("Could not extract file_id. Using legacy slide extraction...")
+                pres_images = self._extract_presentation_slides(total_pages, progress_callback)
+                if pres_images:
+                    return pres_images
             log_warning("Presentation extraction returned empty, falling back to standard extraction...")
         
         # Try bulk extraction first
