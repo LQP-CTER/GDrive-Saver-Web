@@ -420,7 +420,7 @@ class PDFBuilder:
             if scraped_data.main_content:
                 story.append(Paragraph("MAIN CONTENT", styles["SectionHeader"]))
                 story.append(divider)
-                PDFBuilder._add_long_content(story, scraped_data.main_content, styles["BodyText2"], max_chunk=5000)
+                PDFBuilder._add_long_content(story, scraped_data.main_content, styles["BodyText2"], max_chunk=8000)
 
             if scraped_data.items:
                 story.append(PageBreak())
@@ -538,7 +538,7 @@ class PDFBuilder:
 
             if scraped_data.main_content:
                 story.append(Spacer(1, 12))
-                PDFBuilder._add_long_content(story, scraped_data.main_content, body_style, max_chunk=5000)
+                PDFBuilder._add_long_content(story, scraped_data.main_content, body_style, max_chunk=8000)
 
             if scraped_data.items:
                 story.append(PageBreak())

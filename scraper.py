@@ -170,39 +170,80 @@ class AutoContentDetector:
 
     @staticmethod
     def detect_main_content(soup: BeautifulSoup) -> Optional[str]:
-        """Extract the main content block from a page."""
-        for selector in AutoContentDetector.MAIN_CONTENT_SELECTORS:
-            elements = soup.select(selector)
-            for el in elements:
-                text = el.get_text(strip=True)
-                if len(text) > 100:
-                    return AutoContentDetector._clean_element(el)
-
-        # Fallback: find the largest text block in the body
+        """Extract ALL meaningful content from the entire page body."""
         body = soup.find("body")
-        if body:
-            # Remove noise first
-            for selector in AutoContentDetector.NOISE_SELECTORS:
-                for noise in body.select(selector):
-                    noise.decompose()
+        if not body:
+            return None
 
-            # Find divs with significant text content
-            best_div = None
-            best_len = 0
-            for div in body.find_all(["div", "section"]):
-                # Skip if it has child divs with more content (we want the deepest meaningful block)
-                child_divs = div.find_all(["div", "section"], recursive=False)
-                if child_divs:
+        # Remove noise elements
+        for selector in AutoContentDetector.NOISE_SELECTORS:
+            for noise in body.select(selector):
+                noise.decompose()
+
+        # Collect all meaningful text blocks, organized by section
+        sections = []
+        current_section = []
+        current_heading = ""
+
+        def _process_element(el, depth=0):
+            nonlocal current_section, current_heading
+
+            for child in el.children:
+                if not hasattr(child, "name") or child.name is None:
                     continue
-                text = div.get_text(strip=True)
-                if len(text) > best_len and len(text) > 200:
-                    best_len = len(text)
-                    best_div = div
 
-            if best_div:
-                return AutoContentDetector._clean_element(best_div)
+                name = child.name.lower()
 
-        return None
+                if name in ("h1", "h2", "h3", "h4", "h5", "h6"):
+                    heading_text = child.get_text(strip=True)
+                    if heading_text and len(heading_text) > 2:
+                        if current_section:
+                            sections.append((current_heading, "\n".join(current_section)))
+                            current_section = []
+                        current_heading = f"{'#' * (min(depth + 1, 3))} {heading_text}"
+
+                elif name in ("p", "li", "td", "th", "span", "div", "blockquote", "pre"):
+                    text = child.get_text(strip=True)
+                    if len(text) > 15:
+                        if name == "li":
+                            current_section.append(f"  • {text}")
+                        elif name == "blockquote":
+                            current_section.append(f"  > {text}")
+                        else:
+                            current_section.append(text)
+
+                elif name in ("section", "article", "main", "div"):
+                    # Check if this element has significant direct text content
+                    direct_text = child.get_text(strip=True)
+                    child_elements = list(child.children)
+                    has_meaningful_children = any(
+                        getattr(c, "name", None) in ("p", "h1", "h2", "h3", "h4", "h5", "h6", "ul", "ol", "table", "blockquote")
+                        for c in child_elements
+                    )
+                    if has_meaningful_children or len(direct_text) > 100:
+                        _process_element(child, depth + 1)
+
+        _process_element(body)
+
+        # Flush last section
+        if current_section:
+            sections.append((current_heading, "\n".join(current_section)))
+
+        if not sections:
+            return None
+
+        # Build full content
+        parts = []
+        for heading, content in sections:
+            if heading:
+                parts.append(heading)
+            parts.append(content)
+
+        full_text = "\n\n".join(parts)
+        lines = [line.strip() for line in full_text.split("\n") if line.strip()]
+        result = "\n".join(lines)
+
+        return result if len(result) > 100 else None
 
     @staticmethod
     def detect_items(soup: BeautifulSoup, source_url: str) -> List[ScrapedItem]:
