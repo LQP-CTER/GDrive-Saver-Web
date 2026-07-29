@@ -120,6 +120,23 @@ class AutoContentDetector:
         ".td-post-content",
         ".entry",
         ".single-post",
+        # Report / data pages
+        ".report-content",
+        ".report-section",
+        ".report-body",
+        ".report-data",
+        ".data-report",
+        ".report",
+        ".dashboard",
+        ".page-content",
+        ".body-content",
+        ".content-area",
+        ".main-body",
+        ".report-text",
+        ".report-insights",
+        ".insights",
+        ".key-insights",
+        ".summary-content",
     ]
 
     # Selectors for article/list items
@@ -160,6 +177,31 @@ class AutoContentDetector:
                 text = el.get_text(strip=True)
                 if len(text) > 100:
                     return AutoContentDetector._clean_element(el)
+
+        # Fallback: find the largest text block in the body
+        body = soup.find("body")
+        if body:
+            # Remove noise first
+            for selector in AutoContentDetector.NOISE_SELECTORS:
+                for noise in body.select(selector):
+                    noise.decompose()
+
+            # Find divs with significant text content
+            best_div = None
+            best_len = 0
+            for div in body.find_all(["div", "section"]):
+                # Skip if it has child divs with more content (we want the deepest meaningful block)
+                child_divs = div.find_all(["div", "section"], recursive=False)
+                if child_divs:
+                    continue
+                text = div.get_text(strip=True)
+                if len(text) > best_len and len(text) > 200:
+                    best_len = len(text)
+                    best_div = div
+
+            if best_div:
+                return AutoContentDetector._clean_element(best_div)
+
         return None
 
     @staticmethod
@@ -232,7 +274,25 @@ class AutoContentDetector:
 
         img_tags = soup.find_all("img")
         for img in img_tags:
-            src = img.get("src") or img.get("data-src") or img.get("data-lazy-src") or ""
+            # Try multiple source attributes for lazy-loaded images
+            src = (
+                img.get("src")
+                or img.get("data-src")
+                or img.get("data-lazy-src")
+                or img.get("data-original")
+                or img.get("data-srcset")
+                or img.get("srcset")
+                or ""
+            )
+
+            # If srcset, pick the largest resolution
+            if not src and img.get("srcset"):
+                srcset = img["srcset"]
+                entries = [e.strip().split() for e in srcset.split(",")]
+                if entries:
+                    # Pick the last (usually largest) entry
+                    src = entries[-1][0]
+
             if not src:
                 continue
 
@@ -292,6 +352,22 @@ class AutoContentDetector:
         for selector in AutoContentDetector.NOISE_SELECTORS:
             for noise in clone.select(selector):
                 noise.decompose()
+
+        # Convert headings to readable format
+        for tag in clone.find_all(["h1", "h2", "h3", "h4", "h5", "h6"]):
+            tag.insert_before("\n## ")
+            tag.insert_after("\n")
+
+        # Convert list items
+        for li in clone.find_all("li"):
+            li.insert_before("\n• ")
+
+        # Convert table rows to text
+        for tr in clone.find_all("tr"):
+            cells = [td.get_text(strip=True) for td in tr.find_all(["td", "th"])]
+            if cells:
+                tr.replace_with(" | ".join(cells) + "\n")
+
         text = clone.get_text("\n", strip=True)
         lines = [line.strip() for line in text.split("\n") if line.strip()]
         return "\n".join(lines)
@@ -350,12 +426,17 @@ class WebsiteScraper:
             time.sleep(config.PAGE_LOAD_WAIT)
 
             if progress_callback:
-                progress_callback(30, 100, "Đang chờ trang tải hoàn tất...")
+                progress_callback(20, 100, "Đang chờ trang tải hoàn tất...")
 
             self._wait_for_content(timeout=30)
 
             if progress_callback:
-                progress_callback(50, 100, "Đang phân tích nội dung trang...")
+                progress_callback(30, 100, "Đang cuộn trang để tải toàn bộ nội dung...")
+
+            self._scroll_all_content(progress_callback)
+
+            if progress_callback:
+                progress_callback(60, 100, "Đang phân tích nội dung trang...")
 
             html = self.browser.driver.page_source
             soup = BeautifulSoup(html, "html.parser")
@@ -369,20 +450,20 @@ class WebsiteScraper:
             result.scrape_time = time.strftime("%Y-%m-%d %H:%M:%S")
 
             if progress_callback:
-                progress_callback(60, 100, "Đang trích xuất nội dung chính...")
+                progress_callback(70, 100, "Đang trích xuất nội dung chính...")
 
             main_content = AutoContentDetector.detect_main_content(soup)
             if main_content:
                 result.main_content = main_content
 
             if progress_callback:
-                progress_callback(70, 100, "Đang phát hiện các mục nội dung...")
+                progress_callback(80, 100, "Đang phát hiện các mục nội dung...")
 
             items = AutoContentDetector.detect_items(soup, url)
             result.items = items
 
             if progress_callback:
-                progress_callback(85, 100, "Đang trích xuất hình ảnh...")
+                progress_callback(90, 100, "Đang trích xuất hình ảnh...")
 
             images = AutoContentDetector.extract_images(soup, url, self.browser)
             result.all_images = images
@@ -418,3 +499,94 @@ class WebsiteScraper:
                 return True
             time.sleep(0.5)
         return True
+
+    def _scroll_all_content(self, progress_callback=None):
+        """
+        Scroll through the entire page to trigger lazy-loaded content.
+        Uses a smart approach: scroll, wait for content to stabilize, repeat.
+        """
+        driver = self.browser.driver
+
+        # Get initial body text length
+        prev_text_len = driver.execute_script(
+            "return document.body ? document.body.innerText.length : 0;"
+        ) or 0
+
+        scroll_height = driver.execute_script("return document.body.scrollHeight;") or 0
+        viewport_height = driver.execute_script("return window.innerHeight;") or 800
+        scroll_step = max(viewport_height * 0.7, 400)
+
+        log_info(f"Page scroll: height={scroll_height}px, viewport={viewport_height}px")
+
+        current_pos = 0
+        max_passes = 3
+        stable_count = 0
+
+        for pass_num in range(1, max_passes + 1):
+            if pass_num > 1:
+                log_info(f"Pass {pass_num}: re-scrolling to catch remaining lazy content...")
+                current_pos = 0
+                driver.execute_script("window.scrollTo(0, 0);")
+                time.sleep(1)
+
+            last_text_len = 0
+            consecutive_stable = 0
+
+            while current_pos < scroll_height + 500:
+                driver.execute_script(f"window.scrollTo(0, {current_pos});")
+                time.sleep(0.8)
+
+                # Check how much text we have now
+                curr_text_len = driver.execute_script(
+                    "return document.body ? document.body.innerText.length : 0;"
+                ) or 0
+
+                # Check if scroll height grew (new content loaded)
+                new_scroll_height = driver.execute_script("return document.body.scrollHeight;") or 0
+                if new_scroll_height > scroll_height:
+                    scroll_height = new_scroll_height
+
+                if progress_callback:
+                    pct = min(current_pos / max(scroll_height, 1) * 100, 100)
+                    progress_callback(
+                        30 + int(pct * 0.3), 100,
+                        f"Đang cuộn trang — {curr_text_len:,} ký tự đã tải..."
+                    )
+
+                # Check if content is growing
+                if curr_text_len > last_text_len + 50:
+                    consecutive_stable = 0
+                else:
+                    consecutive_stable += 1
+                    if consecutive_stable >= 3:
+                        # Content not growing at this position, move on
+                        break
+
+                last_text_len = curr_text_len
+                current_pos += scroll_step
+
+            # After reaching bottom, wait a bit and check if more content appeared
+            time.sleep(2)
+            final_text_len = driver.execute_script(
+                "return document.body ? document.body.innerText.length : 0;"
+            ) or 0
+
+            log_info(f"After pass {pass_num}: {final_text_len:,} characters ({final_text_len - prev_text_len:+,} new)")
+
+            if final_text_len <= prev_text_len + 100:
+                stable_count += 1
+                if stable_count >= 2:
+                    log_info("Content stabilized — stopping scroll")
+                    break
+            else:
+                stable_count = 0
+                prev_text_len = final_text_len
+
+        # Scroll back to top for clean extraction
+        driver.execute_script("window.scrollTo(0, 0);")
+        time.sleep(1)
+
+        final_len = driver.execute_script(
+            "return document.body ? document.body.innerText.length : 0;"
+        ) or 0
+        log_info(f"Final page content: {final_len:,} characters")

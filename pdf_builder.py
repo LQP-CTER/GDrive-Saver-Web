@@ -225,6 +225,43 @@ class PDFBuilder:
         return saved_paths
 
     @staticmethod
+    def _add_long_content(story, text: str, style, max_chunk: int = 5000):
+        """Add long text content to story, splitting into chunks with page breaks."""
+        escaped = text.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+        paragraphs = escaped.split("\n\n")
+        current_chunk = []
+        current_len = 0
+
+        for para in paragraphs:
+            para = para.strip()
+            if not para:
+                continue
+
+            if len(para) > max_chunk:
+                if current_chunk:
+                    story.append(Paragraph("\n".join(current_chunk), style))
+                    current_chunk = []
+                    current_len = 0
+
+                for i in range(0, len(para), max_chunk):
+                    chunk = para[i:i + max_chunk]
+                    story.append(Paragraph(chunk, style))
+                    story.append(Spacer(1, 4))
+                continue
+
+            if current_len + len(para) > max_chunk and current_chunk:
+                story.append(Paragraph("\n".join(current_chunk), style))
+                story.append(Spacer(1, 4))
+                current_chunk = []
+                current_len = 0
+
+            current_chunk.append(para)
+            current_len += len(para)
+
+        if current_chunk:
+            story.append(Paragraph("\n".join(current_chunk), style))
+
+    @staticmethod
     def build_report_pdf(
         scraped_data,
         output_path: str,
@@ -383,8 +420,7 @@ class PDFBuilder:
             if scraped_data.main_content:
                 story.append(Paragraph("MAIN CONTENT", styles["SectionHeader"]))
                 story.append(divider)
-                content_preview = scraped_data.main_content[:2000]
-                story.append(Paragraph(content_preview, styles["BodyText2"]))
+                PDFBuilder._add_long_content(story, scraped_data.main_content, styles["BodyText2"], max_chunk=5000)
 
             if scraped_data.items:
                 story.append(PageBreak())
@@ -502,8 +538,7 @@ class PDFBuilder:
 
             if scraped_data.main_content:
                 story.append(Spacer(1, 12))
-                preview = scraped_data.main_content[:1500]
-                story.append(Paragraph(preview, body_style))
+                PDFBuilder._add_long_content(story, scraped_data.main_content, body_style, max_chunk=5000)
 
             if scraped_data.items:
                 story.append(PageBreak())
