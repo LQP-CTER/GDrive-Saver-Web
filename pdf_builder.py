@@ -227,6 +227,8 @@ class PDFBuilder:
     @staticmethod
     def _add_long_content(story, text: str, style, max_chunk: int = 5000):
         """Add long text content to story, splitting into chunks with page breaks."""
+        from reportlab.platypus import Paragraph, Spacer
+
         escaped = text.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
         paragraphs = escaped.split("\n\n")
         current_chunk = []
