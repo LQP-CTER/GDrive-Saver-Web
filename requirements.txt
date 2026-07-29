@@ -5,3 +5,5 @@ webdriver-manager
 img2pdf
 Pillow
 colorama
+beautifulsoup4
+reportlab

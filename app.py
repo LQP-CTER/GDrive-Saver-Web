@@ -25,6 +25,7 @@ import requests
 from utils import extract_file_id, is_folder_url, is_presentation_url, is_docs_url, is_sheets_url, build_export_url, sanitize_filename
 from browser_handler import BrowserHandler
 from pdf_builder import PDFBuilder
+from scraper import WebsiteScraper
 import config
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -530,16 +531,36 @@ class AppState:
     compress_error: Optional[str] = None
 
 
+@dataclass
+class ScrapingState:
+    running: bool = False
+    phase: str = "idle"       # idle | running | done | error
+    progress: float = 0.0
+    status_msg: str = ""
+    error: Optional[str] = None
+    report_bytes: Optional[bytes] = None
+    report_filename: str = "scrape_report.pdf"
+    items_count: int = 0
+    images_count: int = 0
+    source_url: str = ""
+    page_title: str = ""
+
+
 def _init_state():
     if "app" not in st.session_state:
         st.session_state.app = AppState()
     elif not hasattr(st.session_state.app, "compress_done"):
-        # Old AppState from a previous deploy — recreate with new fields
         st.session_state.app = AppState()
+
+    if "scraping" not in st.session_state:
+        st.session_state.scraping = ScrapingState()
+    elif not hasattr(st.session_state.scraping, "report_bytes"):
+        st.session_state.scraping = ScrapingState()
 
 
 _init_state()
 state: AppState = st.session_state.app
+scrape_state: ScrapingState = st.session_state.scraping
 
 # ─────────────────────────────────────────────────────────────────────────────
 #  Compression utility
@@ -800,6 +821,65 @@ def _run_inline_compress(pdf_bytes: bytes, filename: str, quality: str):
         state.compress_running = False
 
 
+def _make_scrape_progress_cb():
+    def _cb(current: int, total: int, msg: str):
+        scrape_state.status_msg = msg
+        ratio = min(current / max(total, 1), 1.0)
+        scrape_state.progress = min(ratio, 1.0)
+    return _cb
+
+
+def _run_scraping(url: str):
+    """Scrape website and generate report — background thread."""
+    scraper = WebsiteScraper()
+    tmp_dir = os.path.join(ROOT_DIR, ".tmp_scrape")
+    os.makedirs(tmp_dir, exist_ok=True)
+
+    try:
+        scrape_state.status_msg = "Đang khởi động trình duyệt..."
+        scrape_state.progress = 0.05
+
+        result = scraper.scrape(url, progress_callback=_make_scrape_progress_cb())
+
+        if not result:
+            scrape_state.error = "Không thể scraping trang web. Trang có thể chặn bot hoặc yêu cầu đăng nhập."
+            scrape_state.phase = "error"
+            return
+
+        scrape_state.source_url = result.source_url
+        scrape_state.page_title = result.page_title
+        scrape_state.items_count = result.stats.get("total_items", 0)
+        scrape_state.images_count = result.stats.get("total_images", 0)
+
+        scrape_state.status_msg = "Đang tạo báo cáo PDF..."
+        scrape_state.progress = 0.85
+
+        safe_title = sanitize_filename(result.page_title or "scrape_report")
+        pdf_path = os.path.join(tmp_dir, f"{safe_title}_report.pdf")
+
+        builder = PDFBuilder()
+        if builder.build_report_pdf(result, pdf_path):
+            with open(pdf_path, "rb") as f:
+                scrape_state.report_bytes = f.read()
+            scrape_state.report_filename = f"{safe_title}_report.pdf"
+            try:
+                os.remove(pdf_path)
+            except OSError:
+                pass
+            scrape_state.progress = 1.0
+            scrape_state.status_msg = "Hoàn tất!"
+            scrape_state.phase = "done"
+        else:
+            scrape_state.error = "Lỗi trong quá trình tạo báo cáo PDF."
+            scrape_state.phase = "error"
+
+    except Exception as exc:
+        scrape_state.error = str(exc)
+        scrape_state.phase = "error"
+    finally:
+        scrape_state.running = False
+
+
 # ─────────────────────────────────────────────────────────────────────────────
 #  UI — Hero & Top Right Help Button
 # ─────────────────────────────────────────────────────────────────────────────
@@ -834,15 +914,21 @@ with col_help:
   - *Chất lượng cao (300 dpi)*: Thích hợp in ấn tài liệu.
   - *Tối đa (300+ dpi)*: Giữ nguyên độ nét cao nhất.
 
-#### 3. Lưu ý quan trọng
+#### 3. Scraping & Báo cáo
+- **Nhập URL**: Dán link bất kỳ website nào cần thu thập dữ liệu.
+- **Auto-detect**: Hệ thống tự động phát hiện nội dung chính, bài viết, hình ảnh.
+- **Báo cáo PDF**: Kết quả được đóng gói thành file PDF có cấu trúc (tiêu đề, metadata, nội dung, ảnh).
+
+#### 4. Lưu ý quan trọng
 - **Quyền truy cập**: File yêu cầu đăng nhập tài khoản Google cá nhân sẽ không tải được (cần quyền xem công khai / có link).
 - **Giữ nguyên màn hình**: Không tắt hoặc làm mới (Refresh) trang web khi hệ thống đang xử lý.
+- **Website chặn bot**: Một số website có thể chặn scraping — hệ thống sẽ báo lỗi nếu gặp trường hợp này.
 """)
 
 # ─────────────────────────────────────────────────────────────────────────────
 #  Tabs
 # ─────────────────────────────────────────────────────────────────────────────
-tab_dl, tab_compress = st.tabs(["Tải xuống GDrive", "Nén file PDF"])
+tab_dl, tab_compress, tab_scrape = st.tabs(["Tải xuống GDrive", "Nén file PDF", "Scraping & Báo cáo"])
 
 # ═════════════════════════════════════════════════════════════════════════════
 #  TAB 1 — Download
@@ -1151,6 +1237,100 @@ with tab_compress:
     st.markdown('</div>', unsafe_allow_html=True)  # end .gs-card
 
 
+# ═════════════════════════════════════════════════════════════════════════════
+#  TAB 3 — Scraping & Report
+# ═════════════════════════════════════════════════════════════════════════════
+with tab_scrape:
+    st.markdown('<div class="gs-card">', unsafe_allow_html=True)
+
+    st.markdown("""
+    <div class="gs-label">
+        <span>WEBSITE URL</span>
+        <span class="gs-label-tag">Auto-detect content</span>
+    </div>
+    """, unsafe_allow_html=True)
+
+    scrape_url_input = st.text_input(
+        label="scrape_url",
+        placeholder="Dán URL website cần scraping (ví dụ: https://example.com)...",
+        disabled=scrape_state.running,
+        label_visibility="collapsed",
+        key="scrape_url_input",
+    )
+
+    st.markdown('<div class="gs-spacer"></div>', unsafe_allow_html=True)
+
+    scrape_btn = st.button(
+        "Bắt đầu scraping",
+        type="primary",
+        disabled=scrape_state.running or not scrape_url_input.strip(),
+        use_container_width=True,
+        key="scrape_btn",
+    )
+
+    # ── Running ──
+    if scrape_state.phase == "running":
+        st.markdown('<div class="gs-divider"></div>', unsafe_allow_html=True)
+        st.progress(scrape_state.progress)
+        st.markdown(f"""
+<div class="gs-status-box">
+    <div class="gs-status-header">
+        <span class="gs-status-badge">ĐANG XỬ LÝ</span>
+    </div>
+    <div class="gs-status-text">{scrape_state.status_msg or "Đang tiến hành..."}</div>
+    <div class="gs-status-hint">Trình duyệt ảo đang thu thập dữ liệu — vui lòng giữ nguyên trang web</div>
+</div>
+""", unsafe_allow_html=True)
+
+    # ── Error ──
+    if scrape_state.phase == "error" and scrape_state.error:
+        st.markdown('<div class="gs-divider"></div>', unsafe_allow_html=True)
+        st.markdown(f"""
+<div class="gs-error">
+    <span class="gs-error-badge">LỖI XỬ LÝ</span>
+    <div class="gs-error-msg">{scrape_state.error}</div>
+</div>
+""", unsafe_allow_html=True)
+        if st.button("Thử lại", key="scrape_retry_btn"):
+            st.session_state.scraping = ScrapingState()
+            st.rerun()
+
+    # ── Done ──
+    if scrape_state.phase == "done" and scrape_state.report_bytes:
+        st.markdown('<div class="gs-divider"></div>', unsafe_allow_html=True)
+        st.progress(1.0)
+
+        file_size = _fmt_size(len(scrape_state.report_bytes))
+        st.markdown(f"""
+<div class="gs-result">
+    <span class="gs-result-badge">SCRAPE THÀNH CÔNG</span>
+    <div class="gs-result-name">{scrape_state.page_title or scrape_state.source_url}</div>
+    <div class="gs-result-meta">
+        Nguồn: {scrape_state.source_url} | 
+        Items: {scrape_state.items_count} | 
+        Images: {scrape_state.images_count} | 
+        Báo cáo: {file_size}
+    </div>
+</div>
+""", unsafe_allow_html=True)
+
+        st.download_button(
+            label="Tải báo cáo PDF",
+            data=scrape_state.report_bytes,
+            file_name=scrape_state.report_filename,
+            mime="application/pdf",
+            use_container_width=True,
+            key="download_scrape_report",
+        )
+
+        st.markdown('<div class="gs-spacer-sm"></div>', unsafe_allow_html=True)
+        if st.button("Scraping website khác", key="scrape_reset_btn"):
+            st.session_state.scraping = ScrapingState()
+            st.rerun()
+
+    st.markdown('</div>', unsafe_allow_html=True)  # end .gs-card
+
+
 # ─────────────────────────────────────────────────────────────────────────────
 #  Sidebar
 # ─────────────────────────────────────────────────────────────────────────────
@@ -1173,6 +1353,15 @@ with st.sidebar:
 
 ---
 
+### Hướng dẫn — Scraping & Báo cáo
+
+1. Chuyển sang tab **Scraping & Báo cáo**.
+2. Dán URL website cần thu thập dữ liệu.
+3. Nhấn **Bắt đầu scraping**.
+4. Hệ thống tự động phát hiện nội dung và tạo báo cáo PDF.
+
+---
+
 **Mức chất lượng nén:**
 - **Nhỏ nhất** — 72 dpi, dung lượng tối thiểu
 - **Cân bằng** — 150 dpi, khuyến nghị
@@ -1184,6 +1373,7 @@ with st.sidebar:
 **Lưu ý:**
 - File yêu cầu đăng nhập Google sẽ không tải được.
 - Hỗ trợ link file đơn (`/file/d/`) và thư mục (`/drive/folders/`).
+- Website chặn bot hoặc yêu cầu đăng nhập có thể không scraping được.
 """)
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -1204,7 +1394,19 @@ if start_btn and url_input.strip():
     threading.Thread(target=_run_download, args=(url_input.strip(),), daemon=True).start()
     st.rerun()
 
+if scrape_btn and scrape_url_input.strip():
+    scrape_state.running = True
+    scrape_state.phase = "running"
+    scrape_state.progress = 0.0
+    scrape_state.status_msg = "Đang khởi động..."
+    scrape_state.error = None
+    scrape_state.report_bytes = None
+    scrape_state.source_url = scrape_url_input.strip()
+
+    threading.Thread(target=_run_scraping, args=(scrape_url_input.strip(),), daemon=True).start()
+    st.rerun()
+
 # Polling — keep UI live while any background thread is running
-if state.phase == "running" or state.compress_running or sc.get("running"):
+if state.phase == "running" or state.compress_running or sc.get("running") or scrape_state.phase == "running":
     time.sleep(2)
     st.rerun()
